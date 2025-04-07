@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cardinal_glue"
+version = "0.1.0"
+authors = [{name = "Bryce Grier", email = "bdgrier@stanford.edu"}]
+dependencies = [
+        "requests",
+        "google-api-python-client",
+        "google-auth",
+        "google-auth-oauthlib",
+        "fsspec",
+        "gdrivefs@git+https://github.com/bil/fsspec-gdrivefs.git",
+        "gcsfs",
+        "pandas"
+]
