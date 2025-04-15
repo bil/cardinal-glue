@@ -149,8 +149,8 @@ class GoogleAuth(Auth):
         bool
             Indicates whether a Google credentials JSON file exists.
         """
-        if 'GOOGLE_APPLICATION_CREDENTIALS' in os.environ:
-            print("\nExisting credentials have been found from a previous 'gcloud auth login' call.\n")
+        if os.path.exists(os.environ['GOOGLE_APPLICATION_CREDENTIALS']):
+            # print("\nExisting credentials have been found from a previous 'gcloud auth login' call.\n")
             return True
         if os.path.exists(self.__GCLOUD_AUTH_DB_PATH):
             shutil.move(self.__GCLOUD_AUTH_DB_PATH, os.path.join(self._AUTH_PATH, self.__GCLOUD_DB_DEFAULT_NAME))
