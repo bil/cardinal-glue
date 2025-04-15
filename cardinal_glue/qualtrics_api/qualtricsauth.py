@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import requests
 from cardinal_glue.auth.core import Auth, InvalidAuthInfo
 
         
