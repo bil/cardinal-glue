@@ -56,7 +56,7 @@ class QualtricsAuth(Auth):
                 'X-API-TOKEN': self._api_token, 
                 'Accept': 'application/json'
                 }
-            response = requests.request("GET", url=validate_url, headers=headers)
+            response = requests.request("GET", url=validate_url, headers=self._request_headers)
             if response.status_code != 200:
                 raise InvalidAuthInfo("Invalid API token.")
         else:
