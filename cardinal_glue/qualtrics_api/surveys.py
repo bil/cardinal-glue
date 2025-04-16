@@ -103,8 +103,20 @@ class Survey():
                 "Published": True
             }
             post_response = requests.request('POST', url_post, headers=headers, data=json.dumps(publish_data))
+        elif put_response.status_code == 500:
+            max_retries = 5
+            while put_response.status_code == 500:
+                put_response = requests.request('PUT', url_put, headers=headers, data=question_data_json)
+                retry_count += 1
+                if retry_count > max_retries:
+                    print(f"Exceeded maximum retries. Unable to update question {question_ID} : {put_response}")
+                    return
+                    sleep_interval = 2 ** retry_count
+                    print(f"Checking again in {sleep_interval} seconds")
+                    time.sleep(sleep_interval) 
         else:
             print(f'Unable to update question {question_ID} : {put_response}')
+            return
         if post_response.status_code == 200:
             print(f'Survey {self._survey_ID} successfully published.') 
         else:
