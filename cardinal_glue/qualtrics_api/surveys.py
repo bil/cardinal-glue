@@ -105,6 +105,7 @@ class Survey():
             post_response = requests.request('POST', url_post, headers=headers, data=json.dumps(publish_data))
         elif put_response.status_code == 500:
             max_retries = 5
+            retry_count = 1
             while put_response.status_code == 500:
                 put_response = requests.request('PUT', url_put, headers=headers, data=question_data_json)
                 retry_count += 1
