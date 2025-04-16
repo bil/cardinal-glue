@@ -110,7 +110,7 @@ class Survey():
                 put_response = requests.request('PUT', url_put, headers=headers, data=question_data_json)
                 retry_count += 1
                 if retry_count > max_retries:
-                    print(f"Exceeded maximum retries. Unable to update question {question_ID} : {put_response.json}")
+                    print(f"Exceeded maximum retries. Unable to update question {question_ID} : {put_response}")
                     return
                 sleep_interval = 2 ** retry_count
                 print(f"Trying update question again in {sleep_interval} seconds")
