@@ -72,7 +72,7 @@ class Directory():
             dict_list = dict_list + next_response
         if next_page_url:
             return dict_list
-        mailinglists = [MailingList(auth=self._auth,get_contact_dates=get_contact_dates,**i) for i in dict_list]
+        mailinglists = [MailingList(directoryID=self._directoryID,auth=self._auth,get_contact_dates=get_contact_dates,**i) for i in dict_list]
         df_mailinglists = pd.DataFrame(dict_list)
         self.mailinglists =  mailinglists
         self.mailinglist_frame =  df_mailinglists
@@ -122,7 +122,7 @@ class MailingList():
     """
     A class representing a Qualtrics XM Directory mailing list.
     """
-    def __init__(self, auth=None, get_contact_dates=False, **kwargs):
+    def __init__(self,directoryID,auth=None, get_contact_dates=False, **kwargs):
         """
         The constructor for the MailingList class.
 
@@ -137,6 +137,9 @@ class MailingList():
             Additional keyword arguments that are included to accommodate the output generated during the creation of a Directory object.
             See https://api.qualtrics.com/2d23a14718b4c-mailing-list for more details.
         """
+        if not directoryID:
+            raise ValueError("'directoryID' must be specified.")
+        self._directoryID = directoryID
         valid_keys = {'contactCount', 'mailingListId', 'name', 'lastModifiedDate', 'creationDate', 'ownerId'}
         self.__dict__.update((key, value) for key, value in kwargs.items() if key in valid_keys)
         if not self.mailingListId:
