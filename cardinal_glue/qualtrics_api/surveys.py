@@ -147,7 +147,6 @@ class Survey():
         string
             The progressId value to use for future requests that check the response export progress.
         """
-        progress_status = "inProgress"
 
         data = {
                 "format": "csv",
@@ -175,6 +174,7 @@ class Survey():
         file_ID = None
         max_retries = 10
         retry_count = 0
+        progress_status = "inProgress"
         while progress_status != "complete" and progress_status != "failed" and file_ID is None:
             request_check_URL = base_url + progress_id
             request_check_response = requests.request("GET", request_check_URL, headers=self._auth._request_headers)
