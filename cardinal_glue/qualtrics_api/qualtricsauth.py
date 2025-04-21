@@ -78,4 +78,5 @@ class QualtricsAuth(Auth):
         available_directories = []
         for directory in elements:
             available_directories.append(directory['directoryId'])
+        self.available_directories = available_directories
 
