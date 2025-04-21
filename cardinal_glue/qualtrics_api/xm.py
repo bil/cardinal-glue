@@ -37,6 +37,8 @@ class Directory():
         if not self._directoryID:
             print('No directory ID provided. Using the first available directory ID.')
             self._directoryID = self._auth.available_directories[0]
+        if get_contact_dates:
+            print("Initializing MailingList with contact dates. This may take a while.")
         self.get_mailinglists(get_contact_dates=get_contact_dates)
 
     def get_mailinglists(self, get_contact_dates=False, next_page_url=None):
