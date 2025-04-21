@@ -137,10 +137,10 @@ class MailingList():
             Additional keyword arguments that are included to accommodate the output generated during the creation of a Directory object.
             See https://api.qualtrics.com/2d23a14718b4c-mailing-list for more details.
         """
-        valid_keys = {'mailinglistId','contactCount', 'name', 'lastModifiedDate', 'creationDate', 'ownerId'}
+        valid_keys = {'contactCount', 'mailingListId', 'name', 'lastModifiedDate', 'creationDate', 'ownerId'}
         self.__dict__.update((key, value) for key, value in kwargs.items() if key in valid_keys)
         if not self.mailingListId:
-            raise ValueError("'mailinglistId' must be specified.")
+            raise ValueError("'mailingListId' must be specified.")
         self._auth = auth         
         if not self._auth:
             try:
