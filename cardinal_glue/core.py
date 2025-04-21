@@ -330,7 +330,7 @@ def _validate_qualtrics(xm_directory=None, list_name=None, xm_mailinglist=None):
     valid_list_names = list(xm_directory.mailinglist_frame['name'])
     if list_name not in valid_list_names:
         raise ValueError('Please provide a valid Qualtrics mailing list name.')
-    return xm_directory.get_list_from_name(list_name)
+    return xm_directory.get_mailinglist_from_name(list_name)
 
 def _validate_workgroup(workgroup_stem=None, list_name=None, workgroup=None):
     """
