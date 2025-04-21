@@ -35,7 +35,7 @@ class Directory():
             except ValueError:
                 raise CannotInstantiateServiceObject()
         if not self._directoryID:
-            print('No directory ID provided. Choosing from the first directory available.')
+            print('No directory ID provided. Using the first available directory ID.')
             self._directoryID = self._auth.available_directories[0]
         self.get_mailinglists(get_contact_dates=get_contact_dates)
 
