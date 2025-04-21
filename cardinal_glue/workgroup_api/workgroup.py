@@ -113,7 +113,7 @@ class Workgroup():
         if response.status_code == 200:
             self.privgroup_members = response.json()['members']
             self.privgroup_admins = response.json()['administrators']
-            if not members_out and verbose:
+            if not self.privgroup_members and verbose:
                 print(f'{self.stem}:{self.name} is empty.')
         elif response.status_code == 404:
             print(f"Workgroup '{self.name}' not found.")
