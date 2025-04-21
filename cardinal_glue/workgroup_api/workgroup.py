@@ -84,8 +84,8 @@ class Workgroup():
         if response.status_code == 200:
             self.members = response.json()['members']
             self.admins = response.json()['administrators']
-            self.member_UIDs = [i['id'] for i in members_out]
-            if not members_out and verbose:
+            self.member_UIDs = [i['id'] for i in self.members]
+            if not self.members and verbose:
                 print(f'{self.stem}:{self.name} is empty.')
             self.description = response.json()['description']
             self.filter = response.json()['filter']
