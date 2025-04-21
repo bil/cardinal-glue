@@ -122,14 +122,12 @@ class MailingList():
     """
     A class representing a Qualtrics XM Directory mailing list.
     """
-    def __init__(self, mailinglistID, auth=None, get_contact_dates=False, **kwargs):
+    def __init__(self, auth=None, get_contact_dates=False, **kwargs):
         """
         The constructor for the MailingList class.
 
         Parameters
         __________
-        mailinglistID : string
-            The Qualtrics mailingListId value for the mailing list represented by the object.
         auth : QualtricsAuth
             The QualtricsAuth object needed to query the Qualtrics API.
         get_contact_dates : bool
@@ -143,7 +141,6 @@ class MailingList():
         self.__dict__.update((key, value) for key, value in kwargs.items() if key in valid_keys)
         if not self.mailingListId:
             raise ValueError("'mailinglistID' must be specified.")
-        self.mailingListId = mailinglistID
         self._auth = auth         
         if not self._auth:
             try:
