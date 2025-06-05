@@ -53,8 +53,7 @@ class QualtricsAuth(Auth):
             self._auth_method = 'apitoken'
             validate_url = f'https://{self._data_center}.qualtrics.com/API/v3/whoami'
             self._request_headers = {
-                'X-API-TOKEN': self._api_token, 
-                'Accept': 'application/json'
+                'X-API-TOKEN': self._api_token
                 }
             response = requests.request("GET", url=validate_url, headers=self._request_headers)
             if response.status_code != 200:
@@ -69,9 +68,10 @@ class QualtricsAuth(Auth):
                 raise InvalidAuthInfo("Invalid client values.")
             self._access_token = 'Bearer ' + response.json()['access_token']
             self._request_headers = {
-                'Authorization': self._access_token, 
-                'Accept': 'application/json'
+                'Authorization': self._access_token 
                 }
+        self._request_headers['Accept'] = 'application/json'
+        self._request_headers['Content-Type'] = 'application/json'
         directory_url = f'https://{self._data_center}.qualtrics.com/API/v3/directories'
         response = requests.request("GET", url=directory_url, headers=self._request_headers)
         elements = response.json()['result']['elements']
