@@ -147,9 +147,8 @@ class Workgroup():
             response = requests.put(f'{url}{uid}', cert=self._auth._credentials, params={'type':'USER'})
             if response.status_code == 200:
                 print(f'{uid} was added successfully to {self.name}')
-            elif response.status_code == 400:
-                if 'USER already exist' in response.json['message']:
-                    print(f'{uid} is already in {self.name}')
+            elif response.status_code == 409:
+                print(f'{uid} is already in {self.name}')
             elif response.status_code == 401:
                 print('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
             else:
