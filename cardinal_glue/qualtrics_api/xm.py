@@ -219,7 +219,7 @@ class MailingList():
 
         response = requests.post(url, headers=headers, data=data_json)
         if response.status_code == 200:
-            print(f"Contact for {data['extRef']} was successfully created in {self.name}.")
+            print(f"Contact for {data['extRef']} was successfully created in MailingList {self.name}.")
         else:
             print(f'Error {response.status_code}')
 
@@ -241,7 +241,7 @@ class MailingList():
             response = requests.delete(url, headers=headers)
             if response.status_code == 200:
                 # response returns 200 even if contactID doesn't exist
-                print(f"No deletion errors. Confirm manually that {self.get_extref_from_contactID(contactID)[0]} was successfully deleted from {self.name}.")
+                print(f"No deletion errors. Confirm manually that {self.get_extref_from_contactID(contactID)[0]} was successfully deleted from MailingList {self.name}.")
             else:
                 print(f'Error {response.status_code}')
        

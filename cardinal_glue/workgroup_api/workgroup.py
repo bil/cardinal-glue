@@ -146,7 +146,7 @@ class Workgroup():
         for uid in uid_list:
             response = requests.put(f'{url}{uid}', cert=self._auth._credentials, params={'type':'USER'})
             if response.status_code == 200:
-                print(f'{uid} was added successfully to {self.name}')
+                print(f'{uid} was added successfully to Workgroup {self.name}')
             elif response.status_code == 409:
                 print(f'{uid} is already in {self.name}')
             elif response.status_code == 401:
@@ -179,7 +179,7 @@ class Workgroup():
         for uid in uid_list:
             response = requests.delete(f'{url}{uid}', cert=self._auth._credentials, params={'type':'USER'})
             if response.status_code == 200:
-                print(f'{uid} was removed successfully from {self.name}')
+                print(f'{uid} was removed successfully from Workgroup {self.name}')
             elif response.status_code == 404:
                 print(f'{uid} is not in {self.name}')
             elif response.status_code == 401:
