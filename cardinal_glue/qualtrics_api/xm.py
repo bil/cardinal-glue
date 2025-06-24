@@ -97,7 +97,7 @@ class Directory():
             index = index[0]
             return self.mailinglist_frame['mailingListId'][index]
         else:
-            print(f"No MailingList with the name '{name}' not found.")
+            print(f"MailingList with the name '{name}' not found.")
   
     def get_mailinglist_from_name(self, name):
         """
@@ -117,7 +117,7 @@ class Directory():
             index = index[0]
             return self.mailinglists[index]
         else:
-            print(f"No MailingList with the name '{name}' not found.")
+            print(f"MailingList with the name '{name}' not found.")
     
            
 class MailingList():
