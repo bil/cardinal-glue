@@ -23,7 +23,7 @@ class CAPClient():
             except InvalidAuthInfo:
                 raise CannotInstantiateServiceObject()
 
-    def get_profile_from_uid(self, uid):
+    def get_profile_from_uid(self, uid, community=None):
         """
         Use a UID to query the CAP API for a profile.
 
@@ -31,8 +31,17 @@ class CAPClient():
         __________
         uid : string
             The UID to query.
+        community : string
+            The CAP Client community level.
         """
-        url = f'https://cap.stanford.edu/cap-api/api/profiles/v1?uids={uid}'
+        valid_communities=['public','stanford','hidden','stanford_full','stanford_full_hidden']
+        if community:
+            if community not in valid_communities:
+                print("Please enter a valid value for community.")
+                return
+            url = f'https://cap.stanford.edu/cap-api/api/profiles/v1?uids={uid}&community={community}'
+        else:
+            url = f'https://cap.stanford.edu/cap-api/api/profiles/v1?uids={uid}'
         response = requests.get(url, headers = {"Authorization" : "Bearer " + self._auth.access_token}).json()
         if 'values' in response:
             return CAPProfile(response['values'][0], cap_client=self)
