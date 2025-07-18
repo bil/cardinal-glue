@@ -29,18 +29,20 @@ class CAPAuth(Auth):
         if auto_auth:
             self.authenticate()
 
-    def authenticate(self, file_path=None):
+    def authenticate(self, json_string=None):
         """
         Attempt to authenticate with the Stanford CAP API.
         """
-        if not file_path:
-            file_path = os.path.join(self._AUTH_PATH, self.__CAP_AUTH_JSON_NAME)
-        if os.path.exists(file_path):
-            f = open(file_path)
-            user_info = json.load(f)
-            self._client_id, self._client_secret = user_info['client_id'], user_info['client_secret']
+        if json_string:
+            user_info = json.loads(json_string)
         else:
-            raise InvalidAuthInfo('Unable to generate credentials. Please ensure that there is valid json file containing CAP API authentication information.')
+            file_path = os.path.join(self._AUTH_PATH, self.__CAP_AUTH_JSON_NAME)
+            if os.path.exists(file_path):
+                f = open(file_path)
+                user_info = json.load(f)
+            else:
+                raise InvalidAuthInfo('Unable to generate credentials. Please ensure that there is valid json file containing CAP API authentication information.')
+        self._client_id, self._client_secret = user_info['client_id'], user_info['client_secret']
         url = 'https://authz.stanford.edu/oauth/token'
         data = {'grant_type' : 'client_credentials'}
         auth = (self._client_id, self._client_secret)
