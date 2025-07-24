@@ -21,3 +21,4 @@
 
 The location of the cardinal_glue directory is set programmatically depending on the IDE being used, but it can be modified by the user.
 
+Contact: [Bryce Grier](bdgrier@stanford.edu)
