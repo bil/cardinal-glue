@@ -45,8 +45,6 @@ class CAPClient():
         response = requests.get(url, headers = {"Authorization" : "Bearer " + self._auth.access_token}).json()
         if 'values' in response:
             return CAPProfile(response['values'][0], cap_client=self)
-        else:
-            print(f'{uid} is not accessible')
 
     def get_org_from_code(self, org_code):
         url=f'https://cap.stanford.edu/cap-api/api/cap/v1/orgs/{org_code}'
