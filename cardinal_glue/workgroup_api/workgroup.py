@@ -20,7 +20,7 @@ def get_workgroup_list(stem):
     auth = WorkgroupAuth()
     url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/search/{stem}*'
 
-    response = requests.get(url, cert = auth._credentials)
+    response = auth.make_request('get', url)
     workgroup_list = []
     for item in response.json()['results']:
         temp = item['name']
@@ -80,7 +80,7 @@ class Workgroup():
             Whether to include a larger set of output statements when making API requests.
         """
         url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{self.stem}:{self.name}'
-        response = requests.get(url, cert=self._auth._credentials)
+        response = self._auth.make_request('get', url)
         if response.status_code == 200:
             self.members = response.json()['members']
             self.admins = response.json()['administrators']
@@ -109,7 +109,7 @@ class Workgroup():
             Whether to include a larger set of output statements when making API requests.
         """
         url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{self.stem}:{self.name}/privgroup'
-        response = requests.get(url, cert=self._auth._credentials)
+        response = self._auth.make_request('get', url)
         if response.status_code == 200:
             self.privgroup_members = response.json()['members']
             self.privgroup_admins = response.json()['administrators']
@@ -144,7 +144,7 @@ class Workgroup():
             return
 
         for uid in uid_list:
-            response = requests.put(f'{url}{uid}', cert=self._auth._credentials, params={'type':'USER'})
+            response = self._auth.make_request('put', f'{url}{uid}', params={'type':'USER'})
             if response.status_code == 200:
                 print(f'{uid} was added successfully to Workgroup {self.name}')
             elif response.status_code == 409:
@@ -177,7 +177,7 @@ class Workgroup():
             return
 
         for uid in uid_list:
-            response = requests.delete(f'{url}{uid}', cert=self._auth._credentials, params={'type':'USER'})
+            response = self._auth.make_request('delete', f'{url}{uid}', params={'type':'USER'})
             if response.status_code == 200:
                 print(f'{uid} was removed successfully from Workgroup {self.name}')
             elif response.status_code == 404:
