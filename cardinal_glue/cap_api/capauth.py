@@ -26,25 +26,47 @@ class CAPAuth(Auth):
             User choice as whether to automatically attempt authentication with the Stanford CAP API while instantiating the object.
         """
         super().__init__()
+        self._auth_method = None
         if auto_auth:
             self.authenticate()
 
-    def authenticate(self, json_string=None):
+    def authenticate(self):
         """
         Attempt to authenticate with the Stanford CAP API.
+        Prioritizes environment variables, falls back to local files.
         """
-        if json_string:
-            user_info = json.loads(json_string)
+        if "CAP_CLIENT" in os.environ:
+            self._auth_method = 'memory'
+
         else:
             file_path = os.path.join(self._AUTH_PATH, self.__CAP_AUTH_JSON_NAME)
             if os.path.exists(file_path):
+                self._auth_method = 'file'
                 f = open(file_path)
-                user_info = json.load(f)
+                cap_creds = json.load(f)
             else:
                 raise InvalidAuthInfo('Unable to generate credentials. Please ensure that there is valid json file containing CAP API authentication information.')
-        self._client_id, self._client_secret = user_info['client_id'], user_info['client_secret']
+            self._client_id, self._client_secret = cap_creds['client_id'], cap_creds['client_secret']
+        
+    def make_request(self, method, url, **kwargs):
+        """
+        Fetches a fresh access token and then makes an authenticated request
+        to the CAP API using the bearer token.
+        """ 
+        if self._auth_method == 'memory':
+            cap_creds = json.loads(os.environ.get("CAP_CLIENT"))
+            auth = (cap_creds['client_id'], cap_creds['client_secret'])
+        elif self._auth_method == 'file'
+            auth = (self._client_id, self._client_secret)
         url = 'https://authz.stanford.edu/oauth/token'
         data = {'grant_type' : 'client_credentials'}
-        auth = (self._client_id, self._client_secret)
-        response = requests.post(url, data=data, auth=auth).json()
-        self.access_token = response['access_token']
+        response = requests.post(url, data=data, auth=auth)
+        response.raise_for_status()
+        access_token = response.json()['access_token']
+
+        headers = {'Authorization': f'Bearer {access_token}'}
+        if 'headers' in kwargs:
+            headers.update(kwargs.get('headers', {}))
+        
+        kwargs['headers'] = headers
+        return requests.request(method, url, **kwargs)

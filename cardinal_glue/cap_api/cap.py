@@ -42,13 +42,13 @@ class CAPClient():
             url = f'https://cap.stanford.edu/cap-api/api/profiles/v1?uids={uid}&community={community}'
         else:
             url = f'https://cap.stanford.edu/cap-api/api/profiles/v1?uids={uid}'
-        response = requests.get(url, headers = {"Authorization" : "Bearer " + self._auth.access_token}).json()
+        response = self._auth.make_request('get', url).json()
         if 'values' in response:
             return CAPProfile(response['values'][0], cap_client=self)
 
     def get_org_from_code(self, org_code):
         url=f'https://cap.stanford.edu/cap-api/api/cap/v1/orgs/{org_code}'
-        response = requests.get(url, headers = {"Authorization" : "Bearer " + self._auth.access_token}).json()
+        response = self._auth.make_request('get', url).json()
         if 'alias' in response:
             return response['alias']
 
