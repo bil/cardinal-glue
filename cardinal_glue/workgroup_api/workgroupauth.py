@@ -38,7 +38,7 @@ class WorkgroupAuth(Auth):
         Determines method of authenticating with the Stanford Workgroup API.
         Prioritizes environment variables, falls back to local files.
         """
-        if "WORKGROUP_CERT_STRING" in os.environ and "WORKGROUP_KEY_STRING" in os.environ:
+        if "WORKGROUP_CERT" in os.environ and "WORKGROUP_KEY" in os.environ:
             self._auth_method = 'memory'
         else:
             cert_path = os.path.join(self._AUTH_PATH, self.__WORKGROUP_AUTH_CERT_NAME)
@@ -82,8 +82,8 @@ class WorkgroupAuth(Auth):
             return requests.request(method, url, cert=self._credentials, **kwargs)
         
         elif self._auth_method == 'memory':
-            cert_str = os.environ.get("WORKGROUP_CERT_STRING")
-            key_str = os.environ.get("WORKGROUP_KEY_STRING")
+            cert_str = os.environ.get("WORKGROUP_CERT")
+            key_str = os.environ.get("WORKGROUP_KEY")
 
             with tempfile.NamedTemporaryFile(mode='w', suffix='.cert', delete=True) as cert_file:
                 with tempfile.NamedTemporaryFile(mode='w', suffix='.key', delete=True) as key_file:

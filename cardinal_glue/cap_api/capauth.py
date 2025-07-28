@@ -51,18 +51,45 @@ class CAPAuth(Auth):
     def make_request(self, method, url, **kwargs):
         """
         Fetches a fresh access token and then makes an authenticated request
-        to the CAP API using the bearer token.
+        to the CAP API.
+
+        This method encapsulates the OAuth2 client credentials flow. It first
+        determines where to load credentials from (environment or file),
+        fetches a short-lived bearer token, and then uses that token to
+        make the requested API call.
+
+        Parameters
+        __________
+        method : str
+            The HTTP method for the request (e.g., 'get', 'post').
+        url : str
+            The target CAP API URL for the final request.
+        **kwargs : dict
+            Additional keyword arguments to pass to the `requests` library,
+            such as 'params' or 'json'.
+
+        Returns
+        _______
+        response : requests.Response
+            The Response object from the final, authenticated API call.
+
+        Raises
+        ------
+        InvalidAuthInfo
+            If the authentication method has not been determined.
+        requests.exceptions.HTTPError
+            If fetching the access token fails.
         """ 
         if self._auth_method == 'memory':
             cap_creds = json.loads(os.environ.get("CAP_CLIENT"))
-            auth = (cap_creds['client_id'], cap_creds['client_secret'])
-        elif self._auth_method == 'file'
-            auth = (self._client_id, self._client_secret)
-        url = 'https://authz.stanford.edu/oauth/token'
-        data = {'grant_type' : 'client_credentials'}
-        response = requests.post(url, data=data, auth=auth)
-        response.raise_for_status()
-        access_token = response.json()['access_token']
+            token_auth = (cap_creds['client_id'], cap_creds['client_secret'])
+        elif self._auth_method == 'file':
+            token_auth = (self._client_id, self._client_secret)
+        token_url = 'https://authz.stanford.edu/oauth/token'
+        token_data = {'grant_type' : 'client_credentials'}
+        token_response = requests.post(token_url, data=token_data, auth=token_auth)
+        token_response.raise_for_status()
+        access_token = token_response.json()['access_token']
 
         headers = {'Authorization': f'Bearer {access_token}'}
         if 'headers' in kwargs:
