@@ -49,7 +49,7 @@ class WorkgroupAuth(Auth):
             else:
                 raise InvalidAuthInfo('Please ensure that cert and key file paths are valid.')
 
-      def make_request(self, method, url, **kwargs):
+    def make_request(self, method, url, **kwargs):
         """
         Makes an authenticated request to the Workgroup API.
 
