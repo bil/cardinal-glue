@@ -82,8 +82,8 @@ class WorkgroupAuth(Auth):
             return requests.request(method, url, cert=self._credentials, **kwargs)
         
         elif self._auth_method == 'memory':
-            cert_str = os.environ.get("WORKGROUP_CERT")
-            key_str = os.environ.get("WORKGROUP_KEY")
+            cert_string = os.environ.get("WORKGROUP_CERT")
+            key_string = os.environ.get("WORKGROUP_KEY")
 
             with tempfile.NamedTemporaryFile(mode='w', suffix='.cert', delete=True) as cert_file:
                 with tempfile.NamedTemporaryFile(mode='w', suffix='.key', delete=True) as key_file:
