@@ -78,6 +78,11 @@ class Workgroup():
         __________
         verbose : bool
             Whether to include a larger set of output statements when making API requests.
+
+        Returns
+        _______
+        response.status_code : int
+            The status code returned from the http request
         """
         url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{self.stem}:{self.name}'
         response = self._auth.make_request('get', url)
@@ -92,12 +97,13 @@ class Workgroup():
             self.visibility = response.json()['visibility']
             self.reusable = response.json()['reusable']
             self.integrations = response.json()['integrations']
-        elif response.status_code == 404:
+        elif response.status_code == 404 and verbose:
             print(f"Workgroup '{self.name}' not found.")
-        elif response.status_code == 401:
+        elif response.status_code == 401 and verbose:
             print('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
-        else:
+        elif verbose:
             print(f'Error {response.status_code}')
+        return response.status_code
  
     def get_privgroup(self, verbose=False):
         """
@@ -107,6 +113,11 @@ class Workgroup():
         __________
         verbose : bool
             Whether to include a larger set of output statements when making API requests.
+
+        Returns
+        _______
+        response.status_code : int
+            The status code returned from the http request
         """
         url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{self.stem}:{self.name}/privgroup'
         response = self._auth.make_request('get', url)
@@ -115,12 +126,13 @@ class Workgroup():
             self.privgroup_admins = response.json()['administrators']
             if not self.privgroup_members and verbose:
                 print(f'{self.stem}:{self.name} is empty.')
-        elif response.status_code == 404:
+        elif response.status_code == 404 and verbose:
             print(f"Workgroup '{self.name}' not found.")
-        elif response.status_code == 401:
+        elif response.status_code == 401 and verbose:
             print('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
-        else:
+        elif verbose:
             print(f'Error {response.status_code}')  
+        return response.status_code
 
     def add_members(self, uid_list, verbose=False):
         """
@@ -132,6 +144,11 @@ class Workgroup():
             The list of UIDs to add.
         verbose : bool
             Whether to include a larger set of output statements when making API requests.
+
+        Returns
+        _______
+        status_codes : list
+            The status codes returned from the http requests
         """
         url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{self.stem}:{self.name}/members/'
         if (type(uid_list) is not list):
@@ -143,17 +160,21 @@ class Workgroup():
                 print(f'All of the provided SUNet IDs were already in {self.name}')
             return
 
+        status_codes = []
         for uid in uid_list:
             response = self._auth.make_request('put', f'{url}{uid}', params={'type':'USER'})
-            if response.status_code == 200:
-                print(f'{uid} was added successfully to Workgroup {self.name}')
-            elif response.status_code == 409:
-                print(f'{uid} is already in {self.name}')
-            elif response.status_code == 401:
-                print('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
-            else:
-                print(f'Error {response.status_code}')
+            if verbose:
+                if response.status_code == 200:
+                    print(f'{uid} was added successfully to Workgroup {self.name}')
+                elif response.status_code == 409:
+                    print(f'{uid} is already in {self.name}')
+                elif response.status_code == 401:
+                    print('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
+                else:
+                    print(f'Error {response.status_code}')
+            status_codes.append(response.status_code)
         self.get_workgroup()
+        return status_codes
 
     def remove_members(self, uid_list, verbose=False):
         """
@@ -165,6 +186,11 @@ class Workgroup():
             The list of UIDs to remove.
         verbose : bool
             Whether to include a larger set of output statements when making API requests.
+
+        Returns
+        _______
+        status_codes : list
+            The status codes returned from the http requests
         """
         url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{self.stem}:{self.name}/members/'
         if (type(uid_list) is not list):
@@ -176,14 +202,18 @@ class Workgroup():
                 print(f'None of the provided SUNet IDs were in {self.name}')
             return
 
+        status_codes = []
         for uid in uid_list:
             response = self._auth.make_request('delete', f'{url}{uid}', params={'type':'USER'})
-            if response.status_code == 200:
-                print(f'{uid} was removed successfully from Workgroup {self.name}')
-            elif response.status_code == 404:
-                print(f'{uid} is not in {self.name}')
-            elif response.status_code == 401:
-                print('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
-            else:
-                print(f'Error {response.status_code}')
+            if verbose:
+                if response.status_code == 200:
+                    print(f'{uid} was removed successfully from Workgroup {self.name}')
+                elif response.status_code == 404:
+                    print(f'{uid} is not in {self.name}')
+                elif response.status_code == 401:
+                    print('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
+                else:
+                    print(f'Error {response.status_code}')
+            status_codes.append(response.status_code)
         self.get_workgroup()
+        return status_codes
