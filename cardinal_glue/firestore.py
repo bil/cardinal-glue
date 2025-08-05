@@ -26,7 +26,7 @@ class FirestoreGenerator(Auth):
         if auto_auth:
             self.authenticate()
 
-    def authenticate(self)
+    def authenticate(self):
         if os.getenv('K_REVISION') or os.getenv('COLAB_RELEASE_TAG'):
             self.database = firestore.Client(database=self.database_id)
         else:
