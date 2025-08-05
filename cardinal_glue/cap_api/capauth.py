@@ -32,7 +32,7 @@ class CAPAuth(Auth):
 
     def authenticate(self):
         """
-        Attempt to authenticate with the Stanford CAP API.
+        Determines the method to use to authenticate with the Stanford CAP API.
         Prioritizes environment variables, falls back to local files.
         """
         if "CAP_CLIENT" in os.environ:
@@ -50,13 +50,11 @@ class CAPAuth(Auth):
         
     def make_request(self, method, url, **kwargs):
         """
-        Fetches a fresh access token and then makes an authenticated request
-        to the CAP API.
+        Fetches a fresh access token and then makes an authenticated request to the CAP API.
 
-        This method encapsulates the OAuth2 client credentials flow. It first
-        determines where to load credentials from (environment or file),
-        fetches a short-lived bearer token, and then uses that token to
-        make the requested API call.
+        This method abstracts the authentication details, handling both file-based
+        credentials for local development and in-memory, string-based credentials
+        from environment variables for containerized deployments.
 
         Parameters
         __________
@@ -65,8 +63,7 @@ class CAPAuth(Auth):
         url : str
             The target CAP API URL for the final request.
         **kwargs : dict
-            Additional keyword arguments to pass to the `requests` library,
-            such as 'params' or 'json'.
+            Additional keyword arguments to pass to the `requests` library, such as 'params' or 'json'.
 
         Returns
         _______
