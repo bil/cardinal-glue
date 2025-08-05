@@ -2,10 +2,12 @@ import os
 import json
 from google.cloud import firestore
 import firebase_admin
+from cardinal_glue.auth.core import Auth, InvalidAuthInfo
 
-class FirestoreGenerator():
+class FirestoreGenerator(Auth):
     """
     A class providing easy creation of a Firestore client through multiple authentication workflows.
+    Extends the Auth class.
 
     Attributes
     __________
@@ -17,6 +19,7 @@ class FirestoreGenerator():
 
     def __init__(self, database_id, google_cloud_project=None, auto_auth=True):
 
+        super().__init__()
         if google_cloud_project:
             os.environ['GOOGLE_CLOUD_PROJECT'] = google_cloud_project
         self.database_id = database_id
