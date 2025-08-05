@@ -37,5 +37,9 @@ class FirestoreGenerator(Auth):
             else:
                 raise InvalidAuthInfo('Unable to generate credentials from file. Please ensure that there is valid json file containing Firebase authentication information.')
             creds = firebase_admin.credentials.Certificate(firebase_cred_dict)
-            firebase_app = firebase_admin.initialize_app(creds)    
+            # check if Firebase app is already initialized to prevent errors
+            if not firebase_admin._apps:
+                firebase_app = firebase_admin.initialize_app(creds)
+            else:
+                firebase_app = firebase_admin.get_app()  
             self.database = firestore.client(firebase_app, database_id=database_id)

@@ -42,8 +42,8 @@ class CAPAuth(Auth):
             file_path = os.path.join(self._AUTH_PATH, self.__CAP_AUTH_JSON_NAME)
             if os.path.exists(file_path):
                 self._auth_method = 'file'
-                f = open(file_path)
-                cap_creds = json.load(f)
+                with open(file_path) as f:
+                    cap_creds = json.load(f)
             else:
                 raise InvalidAuthInfo('Unable to generate credentials. Please ensure that there is valid json file containing CAP API authentication information.')
             self._client_id, self._client_secret = cap_creds['client_id'], cap_creds['client_secret']
