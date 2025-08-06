@@ -18,16 +18,19 @@ class FirestoreGenerator(Auth):
 
     __FIREBASE_JSON_NAME = 'firebase.json'
 
-    def __init__(self, database_id, google_cloud_project, auto_auth=True):
+    def __init__(self, database_id, google_cloud_project=None, auto_auth=True):
 
         super().__init__()
-        os.environ['GOOGLE_CLOUD_PROJECT'] = google_cloud_project
+        if google_cloud_project:
+            os.environ['GOOGLE_CLOUD_PROJECT'] = google_cloud_project
         self.database_id = database_id
         if auto_auth:
             self.authenticate()
 
     def authenticate(self):
-        if os.getenv('K_REVISION') or os.getenv('COLAB_RELEASE_TAG'):
+        if os.getenv('K_REVISION'):
+            self.database = firestore.Client(database=self.database_id)
+        elif os.getenv('COLAB_RELEASE_TAG') and os.environ['GOOGLE_CLOUD_PROJECT']:
             gauth = GoogleAuth()
             self.database = firestore.Client(database=self.database_id, credentials=gauth.credentials)
         else:
