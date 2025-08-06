@@ -32,8 +32,8 @@ class FirestoreGenerator(Auth):
         else:
             file_path = os.path.join(self._AUTH_PATH, self.__FIREBASE_JSON_NAME)
             if os.path.exists(file_path):
-                f = open(file_path)
-                firebase_cred_dict = json.load(f)
+                with open(file_path) as f:
+                    firebase_cred_dict = json.load(f)
             else:
                 raise InvalidAuthInfo('Unable to generate credentials from file. Please ensure that there is valid json file containing Firebase authentication information.')
             creds = firebase_admin.credentials.Certificate(firebase_cred_dict)
@@ -42,4 +42,4 @@ class FirestoreGenerator(Auth):
                 firebase_app = firebase_admin.initialize_app(creds)
             else:
                 firebase_app = firebase_admin.get_app()  
-            self.database = firestore.client(firebase_app, database_id=database_id)
+            self.database = firebase_admin.firestore.client(firebase_app, database_id=database_id)
