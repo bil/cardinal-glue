@@ -126,11 +126,11 @@ class GoogleAuth(Auth):
             shutil.move(self.__GCLOUD_AUTH_DB_PATH, os.path.join(self._AUTH_PATH, self.__GCLOUD_DB_DEFAULT_NAME))
             # print("\nAn existing Google DB file has been found from a previous 'gcloud auth login' call.\n")
             # print(f"This DB file has been moved to {self._AUTH_PATH}.\n")
-            return true
+            return True
         elif os.getenv("COLAB_RELEASE_TAG"):
             google.colab.auth._gcloud_login()
             # shutil.move(self.__GCLOUD_AUTH_DB_PATH, os.path.join(self._AUTH_PATH, self.__GCLOUD_DB_DEFAULT_NAME))
-            return true
+            return True
 
     def specify_google_credentials_file(self, file_path):
         """
