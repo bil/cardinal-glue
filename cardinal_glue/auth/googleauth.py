@@ -108,7 +108,7 @@ class GoogleAuth(Auth):
         bool
             Indicates whether a Google credentials JSON file exists.
         """
-        if os.getenv('GOOGLE_APPLICATION_CREDENTIALS'):
+        if os.path.exists(os.getenv('GOOGLE_APPLICATION_CREDENTIALS')):
             return True
         elif self.__google_credentials_db_exists():
             return _convert_db_to_json(self._AUTH_PATH, self.__GCLOUD_DB_DEFAULT_NAME, self._AUTH_PATH, self.__GOOGLE_AUTH_JSON_NAME)
