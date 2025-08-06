@@ -1,10 +1,12 @@
 import google.auth
-import google.colab.auth
 import sqlite3
 import json
 import os
 import shutil
 from cardinal_glue.auth.core import Auth, InvalidAuthInfo
+
+if os.getenv("COLAB_RELEASE_TAG"):
+    import google.colab.auth
 
 def _install_creds(db_path, db_name, json_path, json_name):
     """
