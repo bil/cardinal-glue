@@ -47,4 +47,4 @@ class FirestoreGenerator(Auth):
                 firebase_app = firebase_admin.initialize_app(creds)
             else:
                 firebase_app = firebase_admin.get_app()  
-            self.database = firebase_admin.firestore.client(firebase_app, database_id=database_id)
+            self.database = firebase_admin.firestore.client(firebase_app, database_id=self.database_id)
