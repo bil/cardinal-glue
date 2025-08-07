@@ -1,7 +1,8 @@
 import os
 import json
-from google.cloud import firestore
+from google.cloud import firestore as firestore_v1
 import firebase_admin
+from firebase_admin import firestore
 from cardinal_glue.auth.core import Auth, InvalidAuthInfo
 from cardinal_glue.auth.googleauth import GoogleAuth
 
@@ -29,10 +30,10 @@ class FirestoreGenerator(Auth):
 
     def authenticate(self):
         if os.getenv('K_REVISION'):
-            self.database = firestore.Client(database=self.database_id)
+            self.database = firestore_v1.Client(database=self.database_id)
         elif os.getenv('COLAB_RELEASE_TAG') and os.environ['GOOGLE_CLOUD_PROJECT']:
             gauth = GoogleAuth()
-            self.database = firestore.Client(database=self.database_id, credentials=gauth.credentials)
+            self.database = firestore_v1.Client(database=self.database_id, credentials=gauth.credentials)
         else:
             file_path = os.path.join(self._AUTH_PATH, self.__FIREBASE_JSON_NAME)
             if os.path.exists(file_path):
