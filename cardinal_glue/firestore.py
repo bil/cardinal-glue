@@ -18,13 +18,23 @@ class FirestoreGenerator(Auth):
     """
 
     __FIREBASE_JSON_NAME = 'firebase.json'
+    __FIRESTORE_JSON_NAME = 'firestore.json'
 
-    def __init__(self, database_id, google_cloud_project=None, auto_auth=True):
+    def __init__(self, database_id=None, google_cloud_project=None, auto_auth=True):
 
         super().__init__()
+        if not database_id:
+            file_path = os.path.join(self._AUTH_PATH, self.__FIRESTORE_JSON_NAME)
+            if os.path.exists(file_path):
+                with open(file_path) as f:
+                    firestore_db_dict = json.load(f)
+                    self.database_id = firestore_db_dict['DATABASE_ID']
+            else:
+                 raise InvalidAuthInfo("Please provide a value for 'database_id' or a valid JSON file with a 'DATABASE_ID' field.")
+        else:
+            self.database_id = database_id
         if google_cloud_project:
             os.environ['GOOGLE_CLOUD_PROJECT'] = google_cloud_project
-        self.database_id = database_id
         if auto_auth:
             self.authenticate()
 
@@ -47,4 +57,4 @@ class FirestoreGenerator(Auth):
                 firebase_app = firebase_admin.initialize_app(creds)
             else:
                 firebase_app = firebase_admin.get_app()  
-            self.database = firebase_admin.firestore.client(firebase_app, database_id=self.database_id)
+            self.database = firestore.client(firebase_app, database_id=self.database_id)
