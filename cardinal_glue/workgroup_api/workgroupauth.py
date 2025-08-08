@@ -2,7 +2,11 @@ import os
 import requests
 import tempfile
 from cardinal_glue.auth.core import Auth, InvalidAuthInfo
-        
+import logging
+
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 class WorkgroupAuth(Auth):
     """
@@ -48,6 +52,13 @@ class WorkgroupAuth(Auth):
                 self._auth_method = 'file'
             else:
                 raise InvalidAuthInfo('Please ensure that cert and key file paths are valid.')
+        url=f'https://workgroupsvc.stanford.edu/workgroups/2.0/search/mockurl'
+        response = self.make_request('get', url)
+        if response.status_code == 200:
+            self.__valid = True
+            logger.info('Workgroup credentials validated.')
+        else
+            logger.critical('Unable to validate Workgroup credentials')
 
     def make_request(self, method, url, **kwargs):
         """
@@ -78,6 +89,9 @@ class WorkgroupAuth(Auth):
             If the authentication method has not been successfully determined prior
             to calling this method.
         """
+        if not self.__valid:
+            raise InvalidAuthInfo("Authentication method not determined. Please call authenticate().")
+        
         if self._auth_method == 'file':
             return requests.request(method, url, cert=self._credentials, **kwargs)
         
@@ -94,5 +108,3 @@ class WorkgroupAuth(Auth):
                     
                     cert_tuple = (cert_file.name, key_file.name)
                     return requests.request(method, url, cert=cert_tuple, **kwargs)
-        else:
-            raise InvalidAuthInfo("Authentication method not determined. Please call authenticate().")
