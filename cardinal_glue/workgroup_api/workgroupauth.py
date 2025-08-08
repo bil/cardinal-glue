@@ -89,10 +89,7 @@ class WorkgroupAuth(Auth):
         InvalidAuthInfo
             If the authentication method has not been successfully determined prior
             to calling this method.
-        """
-        if not self.__valid:
-            raise InvalidAuthInfo("Authentication method not determined. Please call authenticate().")
-        
+        """      
         if self._auth_method == 'file':
             return requests.request(method, url, cert=self._credentials, **kwargs)
         
@@ -109,3 +106,5 @@ class WorkgroupAuth(Auth):
                     
                     cert_tuple = (cert_file.name, key_file.name)
                     return requests.request(method, url, cert=cert_tuple, **kwargs)
+        else:
+            raise InvalidAuthInfo("Authentication method not determined. Please call authenticate().")
