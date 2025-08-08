@@ -34,6 +34,7 @@ class WorkgroupAuth(Auth):
         """
         super().__init__()   
         self._auth_method = None
+        self.__valid = False
         if auto_auth:
             self.authenticate()
 
