@@ -85,7 +85,7 @@ class Workgroup():
             self.visibility = response.json()['visibility']
             self.reusable = response.json()['reusable']
             self.integrations = response.json()['integrations']
-            logger.info(f'Workgroup f{self.name} populated.')
+            logger.info(f'Workgroup {self.name} populated.')
         elif response.status_code == 404:
             logger.error(f"Workgroup '{self.name}' not found.")
         elif response.status_code == 401:
@@ -102,7 +102,7 @@ class Workgroup():
         if response.status_code == 200:
             self.privgroup_members = response.json()['members']
             self.privgroup_admins = response.json()['administrators']
-            logger.info(f'Privgroup information for Workgroup f{self.name} populated.')
+            logger.info(f'Privgroup information for Workgroup {self.name} populated.')
         elif response.status_code == 404:
             logger.error(f"Workgroup '{self.name}' not found.")
         elif response.status_code == 401:
