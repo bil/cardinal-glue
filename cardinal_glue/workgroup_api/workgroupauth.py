@@ -57,7 +57,7 @@ class WorkgroupAuth(Auth):
         if response.status_code == 200:
             self.__valid = True
             logger.info('Workgroup credentials validated.')
-        else
+        else:
             logger.critical('Unable to validate Workgroup credentials')
 
     def make_request(self, method, url, **kwargs):
