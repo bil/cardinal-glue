@@ -49,9 +49,6 @@ class Workgroup():
             The workgroup name of the workgroup you want to query.
         auth : WorkgroupAuth
             The WorkgroupAuth object needed to query the Stanford Workgroup API.
-        verbose : bool
-            Whether to include a larger set of output statements when making API requests.
-            Passed to class functions.
         """
         self.members = None
         self.admins = None
@@ -88,6 +85,7 @@ class Workgroup():
             self.visibility = response.json()['visibility']
             self.reusable = response.json()['reusable']
             self.integrations = response.json()['integrations']
+            logger.info(f'Workgroup f{self.name} populated.')
         elif response.status_code == 404:
             logger.error(f"Workgroup '{self.name}' not found.")
         elif response.status_code == 401:
@@ -104,8 +102,7 @@ class Workgroup():
         if response.status_code == 200:
             self.privgroup_members = response.json()['members']
             self.privgroup_admins = response.json()['administrators']
-            if not self.privgroup_members and verbose:
-                print(f'{self.stem}:{self.name} is empty.')
+            logger.info(f'Privgroup information for Workgroup f{self.name} populated.')
         elif response.status_code == 404:
             logger.error(f"Workgroup '{self.name}' not found.")
         elif response.status_code == 401:
@@ -128,21 +125,19 @@ class Workgroup():
         # self.populate_workgroup()
         uid_list = list(set(uid_list)-set(self.member_UIDs))
         if not uid_list:
-            if verbose:
-                print(f'All of the provided SUNet IDs were already in {self.name}')
+            logger.info(f'All of the provided SUNet IDs were already in {self.name}')
             return
 
         for uid in uid_list:
             response = self._auth.make_request('put', f'{url}{uid}', params={'type':'USER'})
-            if verbose:
-                if response.status_code == 200:
-                    logger.info(f'{uid} was added successfully to Workgroup {self.name}')
-                elif response.status_code == 409:
-                    logger.info(f'{uid} is already in {self.name}')
-                elif response.status_code == 401:
-                    logger.error('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
-                else:
-                    logger.error(f'Error {response.status_code}')
+            if response.status_code == 200:
+                logger.info(f'{uid} was added successfully to Workgroup {self.name}')
+            elif response.status_code == 409:
+                logger.info(f'{uid} is already in {self.name}')
+            elif response.status_code == 401:
+                logger.error('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
+            else:
+                logger.error(f'Error {response.status_code}')
         self.populate_workgroup()
 
     def remove_members(self, uid_list):
@@ -160,20 +155,18 @@ class Workgroup():
         # self.populate_workgroup()
         uid_list = list(set(uid_list) & set(self.member_UIDs))
         if not uid_list:
-            if verbose:
-                logger.info(f'None of the provided SUNet IDs were in {self.name}')
+            logger.info(f'None of the provided SUNet IDs were in {self.name}')
             return
 
         status_codes = []
         for uid in uid_list:
             response = self._auth.make_request('delete', f'{url}{uid}', params={'type':'USER'})
-            if verbose:
-                if response.status_code == 200:
-                    logger.info(f'{uid} was removed successfully from Workgroup {self.name}')
-                elif response.status_code == 404:
-                    logger.info(f'{uid} is not in {self.name}')
-                elif response.status_code == 401:
-                    logger.error('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
-                else:
-                    logger.error(f'Error {response.status_code}')
+            if response.status_code == 200:
+                logger.info(f'{uid} was removed successfully from Workgroup {self.name}')
+            elif response.status_code == 404:
+                logger.info(f'{uid} is not in {self.name}')
+            elif response.status_code == 401:
+                logger.error('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
+            else:
+                logger.error(f'Error {response.status_code}')
         self.populate_workgroup()
