@@ -26,8 +26,7 @@ def populate_workgroup_list(stem, logging=None):
         logging = logging.upper()
         if logging not in valid_levels:
             raise ValueError(f"Please ensure that the value of 'logging' is one of the following: {valid_levels}.")
-        level = f"logging.{logging}"
-        logger.setLevel(level)
+        logger.setLevel(logging)
     auth = WorkgroupAuth()
     url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/search/{stem}*'
     response = auth.make_request('get', url)
@@ -74,8 +73,7 @@ class Workgroup():
             logging = logging.upper()
             if logging not in valid_levels:
                 raise ValueError(f"Please ensure that the value of 'logging' is one of the following: {valid_levels}.")
-            level = f"logging.{logging}"
-            logger.setLevel(level)
+            logger.setLevel(logging)
         if not self._auth:
             try:
                 self._auth = WorkgroupAuth()
