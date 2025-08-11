@@ -1,7 +1,8 @@
 import requests
+import os
+import logging
 from cardinal_glue.workgroup_api.workgroupauth import WorkgroupAuth
 from cardinal_glue.auth.core import InvalidAuthInfo, CannotInstantiateServiceObject
-import logging
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
