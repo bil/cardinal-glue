@@ -5,9 +5,12 @@ import logging
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-        
-def populate_workgroup_list(stem, logging=None):
+if os.getenv('cardinal_logging'):
+    logger.setLevel(os.getenv('cardinal_logging').upper())
+else
+    logger.setLevel('DEBUG') 
+
+def populate_workgroup_list(stem):
     """
     List the workgroups nested under a given stem.
 
@@ -21,12 +24,6 @@ def populate_workgroup_list(stem, logging=None):
     workgroup_list : list
         A list of workgroup names.
     """
-    if logging:
-        valid_levels = ['DEBUG','INFO','WARNING','ERROR','CRITICAL']
-        logging = logging.upper()
-        if logging not in valid_levels:
-            raise ValueError(f"Please ensure that the value of 'logging' is one of the following: {valid_levels}.")
-        logger.setLevel(logging)
     auth = WorkgroupAuth()
     url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/search/{stem}*'
     response = auth.make_request('get', url)
@@ -42,7 +39,7 @@ class Workgroup():
     """
     A class representing a Stanford workgroup.
     """
-    def __init__(self, stem, workgroup, auth=None, logging=None):
+    def __init__(self, stem, workgroup, auth=None):
         """
         The constructor for the Workgroup class.
 
@@ -68,12 +65,6 @@ class Workgroup():
         self.visibility = None
         self.reusable = None
         self.integrations = None
-        if logging:
-            valid_levels = ['DEBUG','INFO','WARNING','ERROR','CRITICAL']
-            logging = logging.upper()
-            if logging not in valid_levels:
-                raise ValueError(f"Please ensure that the value of 'logging' is one of the following: {valid_levels}.")
-            logger.setLevel(logging)
         if not self._auth:
             try:
                 self._auth = WorkgroupAuth()
