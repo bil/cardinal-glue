@@ -1,12 +1,15 @@
 import os
 import requests
 import tempfile
-from cardinal_glue.auth.core import Auth, InvalidAuthInfo
 import logging
+from cardinal_glue.auth.core import Auth, InvalidAuthInfo
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+if os.getenv('CARDINAL_LOGGING'):
+    logger.setLevel(os.getenv('CARDINAL_LOGGING').upper())
+else:
+    logger.setLevel('ERROR') 
 
 class WorkgroupAuth(Auth):
     """
