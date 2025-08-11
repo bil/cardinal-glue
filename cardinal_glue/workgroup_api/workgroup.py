@@ -7,7 +7,7 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
         
-def populate_workgroup_list(stem):
+def populate_workgroup_list(stem, logging=None):
     """
     List the workgroups nested under a given stem.
 
@@ -21,9 +21,15 @@ def populate_workgroup_list(stem):
     workgroup_list : list
         A list of workgroup names.
     """
+    if logging:
+        valid_levels = ['DEBUG','INFO','WARNING','ERROR','CRITICAL']
+        logging = logging.upper()
+        if logging not in valid_levels:
+            raise ValueError(f"Please ensure that the value of 'logging' is one of the following: {valid_levels}.")
+        level = f"logging.{logging}"
+        logger.setLevel(level)
     auth = WorkgroupAuth()
     url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/search/{stem}*'
-
     response = auth.make_request('get', url)
     workgroup_list = []
     for item in response.json()['results']:
