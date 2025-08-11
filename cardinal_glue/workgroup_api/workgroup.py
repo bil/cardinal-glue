@@ -37,7 +37,7 @@ class Workgroup():
     """
     A class representing a Stanford workgroup.
     """
-    def __init__(self, stem, workgroup, auth=None):
+    def __init__(self, stem, workgroup, auth=None, logging=None):
         """
         The constructor for the Workgroup class.
 
@@ -63,6 +63,13 @@ class Workgroup():
         self.visibility = None
         self.reusable = None
         self.integrations = None
+        if logging:
+            valid_levels = ['DEBUG','INFO','WARNING','ERROR','CRITICAL']
+            logging = logging.upper()
+            if logging not in valid_levels:
+                raise ValueError(f"Please ensure that the value of 'logging' is one of the following: {valid_levels}.")
+            level = f"logging.{logging}"
+            logger.setLevel(level)
         if not self._auth:
             try:
                 self._auth = WorkgroupAuth()
