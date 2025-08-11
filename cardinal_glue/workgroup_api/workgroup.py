@@ -7,7 +7,7 @@ logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 if os.getenv('CARDINAL_LOGGING'):
     logger.setLevel(os.getenv('CARDINAL_LOGGING').upper())
-else
+else:
     logger.setLevel('ERROR') 
 
 def populate_workgroup_list(stem):
