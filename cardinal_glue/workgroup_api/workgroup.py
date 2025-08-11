@@ -5,10 +5,10 @@ import logging
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-if os.getenv('cardinal_logging'):
-    logger.setLevel(os.getenv('cardinal_logging').upper())
+if os.getenv('CARDINAL_LOGGING'):
+    logger.setLevel(os.getenv('CARDINAL_LOGGING').upper())
 else
-    logger.setLevel('DEBUG') 
+    logger.setLevel('ERROR') 
 
 def populate_workgroup_list(stem):
     """
