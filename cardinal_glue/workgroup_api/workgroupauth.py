@@ -26,7 +26,7 @@ class WorkgroupAuth(Auth):
     __WORKGROUP_AUTH_CERT_NAME = 'stanford_workgroup.cert'
     __WORKGROUP_AUTH_KEY_NAME = 'stanford_workgroup.key'
 
-    def __init__(self, auto_auth=True):
+    def __init__(self, creds=None, auto_auth=True):
         """
         The constructor for the WorkgroupAuth class.
 
@@ -35,7 +35,10 @@ class WorkgroupAuth(Auth):
         auto_auth : bool
             User choice as whether to automatically attempt authentication with the Stanford Workgroup API while instantiating the object.
         """
-        super().__init__()   
+        super().__init__()
+        if creds and not isinstance(creds, tuple):
+            raise InvalidAuthInfo("Please pass 'creds' as a tuple of two strings containing paths")
+        self._credentials = creds
         self._auth_method = None
         self.__valid = False
         if auto_auth:
@@ -49,13 +52,14 @@ class WorkgroupAuth(Auth):
         if "WORKGROUP_CERT" in os.environ and "WORKGROUP_KEY" in os.environ:
             self._auth_method = 'memory'
         else:
-            cert_path = os.path.join(self._AUTH_PATH, self.__WORKGROUP_AUTH_CERT_NAME)
-            key_path = os.path.join(self._AUTH_PATH, self.__WORKGROUP_AUTH_KEY_NAME)
-            if os.path.exists(cert_path) and os.path.exists(key_path):
-                self._credentials = (cert_path, key_path)
-                self._auth_method = 'file'
-            else:
-                raise InvalidAuthInfo('Please ensure that cert and key file paths are valid.')
+            if not self._credentials:
+                cert_path = os.path.join(self._AUTH_PATH, self.__WORKGROUP_AUTH_CERT_NAME)
+                key_path = os.path.join(self._AUTH_PATH, self.__WORKGROUP_AUTH_KEY_NAME)
+                if os.path.exists(cert_path) and os.path.exists(key_path):
+                    self._credentials = (cert_path, key_path)
+                    self._auth_method = 'file'
+                else:
+                    raise InvalidAuthInfo('Please ensure that cert and key file paths are valid.')
         url=f'https://workgroupsvc.stanford.edu/workgroups/2.0/search/mockurl'
         response = self.make_request('get', url)
         if response.status_code == 200:
