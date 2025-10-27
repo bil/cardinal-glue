@@ -40,7 +40,7 @@ class Workgroup():
     """
     A class representing a Stanford workgroup.
     """
-    def __init__(self, stem, workgroup, auth=None):
+    def __init__(self, stem, workgroup, auth=None, privgroup=False):
         """
         The constructor for the Workgroup class.
 
@@ -71,7 +71,10 @@ class Workgroup():
                 self._auth = WorkgroupAuth()
             except InvalidAuthInfo:
                 raise CannotInstantiateServiceObject()
-        self.populate_workgroup()
+        if privgroup:
+            self.populate_privgroup()
+        else:
+            self.populate_workgroup()
 
     def populate_workgroup(self):
         """
