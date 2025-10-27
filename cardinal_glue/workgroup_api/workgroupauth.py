@@ -57,13 +57,13 @@ class WorkgroupAuth(Auth):
         if "WORKGROUP_CERT" in os.environ and "WORKGROUP_KEY" in os.environ:
             self._auth_method = 'memory'
         else:
+            self._auth_method = 'file'
             if not self._credentials:
                 cert_path = os.path.join(self._AUTH_PATH, self.__WORKGROUP_AUTH_CERT_NAME)
                 key_path = os.path.join(self._AUTH_PATH, self.__WORKGROUP_AUTH_KEY_NAME)
                 if os.path.exists(cert_path) and os.path.exists(key_path):
                     self._credentials = (cert_path, key_path)
-                    self._auth_method = 'file'
-                else:
+                 else:
                     raise InvalidAuthInfo('Please ensure that cert and key file paths are valid.')
         url=f'https://workgroupsvc.stanford.edu/workgroups/2.0/search/mockurl'
         response = self.make_request('get', url)
