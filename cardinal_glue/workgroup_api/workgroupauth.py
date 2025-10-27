@@ -32,12 +32,17 @@ class WorkgroupAuth(Auth):
 
         Parameters
         __________
+        creds : tuple
+            Local paths to credential files.    
         auto_auth : bool
             User choice as whether to automatically attempt authentication with the Stanford Workgroup API while instantiating the object.
         """
         super().__init__()
-        if creds and not isinstance(creds, tuple):
-            raise InvalidAuthInfo("Please pass 'creds' as a tuple of two strings containing paths")
+        if creds:
+            if not isinstance(creds, tuple):
+                raise InvalidAuthInfo("Please pass 'creds' as a tuple")
+            if not isinstance(creds(0), string) or not isinstance(creds(1), string):
+                raise InvalidAuthInfo("Please ensure that the values of 'creds' are strings")
         self._credentials = creds
         self._auth_method = None
         self.__valid = False
