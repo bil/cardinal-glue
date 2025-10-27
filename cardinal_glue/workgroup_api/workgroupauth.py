@@ -41,8 +41,8 @@ class WorkgroupAuth(Auth):
         if creds:
             if not isinstance(creds, tuple):
                 raise InvalidAuthInfo("Please pass 'creds' as a tuple")
-            if not isinstance(creds(0), string) or not isinstance(creds(1), string):
-                raise InvalidAuthInfo("Please ensure that the values of 'creds' are strings")
+            if not isinstance(creds[0], string) or not isinstance(creds[1], string):
+                raise InvalidAuthInfo("Please ensure that the items in 'creds' are strings")
         self._credentials = creds
         self._auth_method = None
         self.__valid = False
