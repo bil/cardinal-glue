@@ -11,29 +11,67 @@ if os.getenv('CARDINAL_LOGGING'):
 else:
     logger.setLevel('ERROR') 
 
-def populate_workgroup_list(stem):
-    """
-    List the workgroups nested under a given stem.
 
-    Parameters
-    __________
-    stem : string
-        The workgroup stem to query.
-
-    Returns
-    _______
-    workgroup_list : list
-        A list of workgroup names.
+class WorkgroupManager():
     """
-    auth = WorkgroupAuth()
-    url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/search/{stem}*'
-    response = auth.make_request('get', url)
-    workgroup_list = []
-    for item in response.json()['results']:
-        temp = item['name']
-        temp = str.split(temp, ':')[1]
-        workgroup_list.append(temp)
-    return workgroup_list
+    A class allowing users to manage Stanford workgroups.
+    """
+
+    def __init__(self, stem, auth=None):
+        """
+        The constructor for the WorkgroupManager class.
+
+        Parameters
+        __________
+        stem : string
+            The stem of the workgroups you want to manage.
+        auth : WorkgroupAuth
+            The WorkgroupAuth object needed to query the Stanford Workgroup API.
+        """
+        self._auth = auth
+        self.stem = stem
+        if not self._auth:
+            try:
+                self._auth = WorkgroupAuth()
+            except InvalidAuthInfo:
+                raise CannotInstantiateServiceObject()
+        # self.workgroup_list = self.populate_workgroup_list(stem)
+
+    def populate_workgroup_list(self):
+        """
+        List the workgroups nested under a given stem.
+
+        Parameters
+        __________
+        stem : string
+            The workgroup stem to query.
+
+        Returns
+        _______
+        workgroup_list : list
+            A list of workgroup names.
+        """
+        url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/search/{self.stem}*'
+        response = self._auth.make_request('get', url)
+        workgroup_list = []
+        for item in response.json()['results']:
+            temp = item['name']
+            temp = str.split(temp, ':')[1]
+            workgroup_list.append(temp)
+        self.workgroup_list = workgroup_list
+
+    def create_workgroup(self, name, description, filter_in='NONE', reusable='TRUE', visibility='PRIVATE', privgroup='TRUE'):
+        workgroup_name = f'{self.stem}:{name}'
+        data={
+            'description':description,           # workgroup description
+            'filter':filter_in,                # NONE = default; all Stanford affiliates allowed
+            'reusable':reusable,              # TRUE = default; can be nested under other stems
+            'visibility':visibility,         # PRIVATE = membership can only be seen by admins
+            'privgroup':privgroup             # TRUE = default; unused?
+        }
+        url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{workgroup_name}'
+        response = requests.post(url=url, cert=self._auth._credentials, params=data)
+        return response.json()
 
 
 class Workgroup():
