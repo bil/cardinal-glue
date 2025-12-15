@@ -70,7 +70,7 @@ class WorkgroupManager():
             'privgroup':privgroup             # TRUE = default; unused?
         }
         url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{workgroup_name}'
-        response = requests.post(url=url, cert=self._auth._credentials, params=data)
+        response = self._auth.make_request('post', url=url, params=data)
         return response.json()
 
 
