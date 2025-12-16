@@ -71,13 +71,41 @@ class WorkgroupManager():
         }
         url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{workgroup_name}'
         response = self._auth.make_request('post', url=url, params=data)
-        return response.json()
+        if response.status_code == 201:
+            logger.info(f'Workgroup {workgroup_name} created successfully.')
+        elif response.status_code == 409:
+            logger.info(f'Workgroup {workgroup_name} already exists.')
+        elif response.status_code == 401:
+            logger.error('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
+        else:
+            logger.error(f'Error {response.status_code}')
+        
+        try:
+            ret = response.json()
+        except:
+            ret = {}
+        ret['statusCode'] = response.status_code
+        return ret
 
     def delete_workgroup(self, name):
         workgroup_name = f'{self.stem}:{name}'
         url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{workgroup_name}'
         response = self._auth.make_request('delete', url=url)
-        return response.json()
+        if response.status_code == 200:
+            logger.info(f'Workgroup {workgroup_name} deleted successfully.')
+        elif response.status_code == 404:
+            logger.info(f'Workgroup {workgroup_name} not found.')
+        elif response.status_code == 401:
+            logger.error('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
+        else:
+            logger.error(f'Error {response.status_code}')
+
+        try:
+            ret = response.json()
+        except:
+            ret = {}
+        ret['statusCode'] = response.status_code
+        return ret
 
 
 class Workgroup():
