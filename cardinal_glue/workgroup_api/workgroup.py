@@ -93,7 +93,7 @@ class WorkgroupManager():
         response = self._auth.make_request('delete', url=url)
         if response.status_code == 200:
             logger.info(f'Workgroup {workgroup_name} deleted successfully.')
-        elif response.status_code == 404:
+        elif response.status_code == 400:
             logger.info(f'Workgroup {workgroup_name} not found.')
         elif response.status_code == 401:
             logger.error('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
