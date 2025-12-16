@@ -73,6 +73,12 @@ class WorkgroupManager():
         response = self._auth.make_request('post', url=url, params=data)
         return response.json()
 
+    def delete_workgroup(self, name):
+        workgroup_name = f'{self.stem}:{name}'
+        url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{workgroup_name}'
+        response = self._auth.make_request('delete', url=url)
+        return response.json()
+
 
 class Workgroup():
     """
