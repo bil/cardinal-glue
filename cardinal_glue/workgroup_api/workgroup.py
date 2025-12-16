@@ -129,7 +129,7 @@ class Workgroup():
         self.admins = None
         self.privgroup_members = None
         self.privgroup_admins = None
-        self.member_UIDs = None
+        self.member_details = None
         self._auth = auth
         self.stem = stem
         self.name = workgroup
@@ -155,9 +155,9 @@ class Workgroup():
         url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{self.stem}:{self.name}'
         response = self._auth.make_request('get', url)
         if response.status_code == 200:
-            self.members = response.json()['members']
+            self.member_details = response.json()['members']
             self.admins = response.json()['administrators']
-            self.member_UIDs = [i['id'] for i in self.members]
+            self.members = [i['id'] for i in self.member_details]
             self.description = response.json()['description']
             self.filter = response.json()['filter']
             self.visibility = response.json()['visibility']
@@ -188,61 +188,95 @@ class Workgroup():
         else:
             logger.error(f'Error {response.status_code}')
 
-    def add_members(self, uid_list):
+    def add_members(self, member_list, member_type='USER', member_stem=None):
         """
         Add members to a workgroup.
 
         Parameters
         __________
-        uid_list : list
-            The list of UIDs to add.
+        member_list : list
+            The list of members (UIDs or Workgroup names) to add.
+        member_type : str
+            The type of member to add ('USER' or 'WORKGROUP'). Default is 'USER'.
+        member_stem : str
+            The stem of the workgroup member to add. 
+            Only used if member_type is 'WORKGROUP' and the member name does not contain a colon.
+            Defaults to self.stem if not provided.
         """
+        member_type = member_type.upper()
+        if member_type not in ['USER', 'WORKGROUP']:
+            raise ValueError("member_type must be either 'USER' or 'WORKGROUP'")
+
         url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{self.stem}:{self.name}/members/'
-        if (type(uid_list) is not list):
-            uid_list = [uid_list]
+        if (type(member_list) is not list):
+            member_list = [member_list]
         # self.populate_workgroup()
-        uid_list = list(set(uid_list)-set(self.member_UIDs))
-        if not uid_list:
-            logger.info(f'All of the provided SUNet IDs were already in {self.name}')
+        
+        # Filter existing members locally to reduce API calls
+        member_list = list(set(member_list)-set(self.members))
+        
+        if not member_list:
+            logger.info(f'All of the provided members were already in {self.name}')
             return
 
-        for uid in uid_list:
-            response = self._auth.make_request('put', f'{url}{uid}', params={'type':'USER'})
+        for member in member_list:
+            if member_type == 'WORKGROUP':
+                stem_to_use = member_stem if member_stem else self.stem
+                member = f"{stem_to_use}:{member}"
+
+            response = self._auth.make_request('put', f'{url}{member}', params={'type': member_type})
             if response.status_code == 200:
-                logger.info(f'{uid} was added successfully to Workgroup {self.name}')
+                logger.info(f'{member} was added successfully to Workgroup {self.name}')
             elif response.status_code == 409:
-                logger.info(f'{uid} is already in {self.name}')
+                logger.info(f'{member} is already in {self.name}')
             elif response.status_code == 401:
                 logger.error('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
             else:
                 logger.error(f'Error {response.status_code}')
         self.populate_workgroup()
 
-    def remove_members(self, uid_list):
+    def remove_members(self, member_list, member_type='USER', member_stem=None):
         """
         Remove members from a workgroup.
 
         Parameters
         __________
-        uid_list : list
-            The list of UIDs to remove.
+        member_list : list
+            The list of members (UIDs or Workgroup names) to remove.
+        member_type : str
+            The type of member to remove ('USER' or 'WORKGROUP'). Default is 'USER'.
+        member_stem : str
+            The stem of the workgroup member to remove. 
+            Only used if member_type is 'WORKGROUP' and the member name does not contain a colon.
+            Defaults to self.stem if not provided.
         """
+        member_type = member_type.upper()
+        if member_type not in ['USER', 'WORKGROUP']:
+            raise ValueError("member_type must be either 'USER' or 'WORKGROUP'")
+
         url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{self.stem}:{self.name}/members/'
-        if (type(uid_list) is not list):
-            uid_list = [uid_list]
+        if (type(member_list) is not list):
+            member_list = [member_list]
         # self.populate_workgroup()
-        uid_list = list(set(uid_list) & set(self.member_UIDs))
-        if not uid_list:
-            logger.info(f'None of the provided SUNet IDs were in {self.name}')
+
+        # Filter members to remove locally to reduce API calls
+        member_list = list(set(member_list) & set(self.members))
+             
+        if not member_list:
+            logger.info(f'None of the provided members were in {self.name}')
             return
 
         status_codes = []
-        for uid in uid_list:
-            response = self._auth.make_request('delete', f'{url}{uid}', params={'type':'USER'})
+        for member in member_list:
+            if member_type == 'WORKGROUP':
+                stem_to_use = member_stem if member_stem else self.stem
+                member = f"{stem_to_use}:{member}"
+
+            response = self._auth.make_request('delete', f'{url}{member}', params={'type': member_type})
             if response.status_code == 200:
-                logger.info(f'{uid} was removed successfully from Workgroup {self.name}')
+                logger.info(f'{member} was removed successfully from Workgroup {self.name}')
             elif response.status_code == 404:
-                logger.info(f'{uid} is not in {self.name}')
+                logger.info(f'{member} is not in {self.name}')
             elif response.status_code == 401:
                 logger.error('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
             else:

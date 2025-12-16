@@ -70,7 +70,7 @@ def sync_service(src, sync_object=None, sync_service=None, sync_list_name=None, 
             _remove_from_qualtrics(uid_remove_list=uid_remove_list, target_mailinglist=sync_object)
         _copy_to_qualtrics(uid_add_list=src_uid_list, dest_mailinglist=sync_object)
     elif isinstance(sync_object, Workgroup):
-        dest_uid_list = sync_object.member_UIDs
+        dest_uid_list = sync_object.members
         uid_remove_list = list(set(dest_uid_list) - set(src_uid_list))
         _remove_from_workgroup(uid_remove_list=uid_remove_list, target_workgroup=target_workgroup)
         _copy_to_workgroup(src_uid_list=src_uid_list, dest_workgroup=sync_object)
@@ -276,7 +276,7 @@ def _prepare_src(src):
     if isinstance(src, xm.MailingList):
         uid_list = list(src.contacts['extRef'])
     elif isinstance(src, Workgroup):
-        uid_list = src.member_UIDs
+        uid_list = src.members
     if not isinstance(uid_list, list):
         raise ValueError('Please provide a valid source object or list.')
     return uid_list
