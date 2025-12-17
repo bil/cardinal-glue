@@ -51,7 +51,7 @@ class GoogleAuth(Auth):
     Extends the Auth class.
 
     Attributes
-    __________
+    ----------
     __GOOGLE_AUTH_JSON_NAME: string
         The name of the JSON file containing 
     __GCLOUD_AUTH_DEFAULT_PATH: string
@@ -72,7 +72,7 @@ class GoogleAuth(Auth):
         The constructor for the GoogleAuth class.
 
         Parameters
-        __________
+        ----------
         auth_path : string
             A custom path to search for Google authentication files.
         auto_auth : bool

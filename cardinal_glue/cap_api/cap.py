@@ -15,7 +15,7 @@ class CAPClient():
         The constructor for the CAPClient class.
 
         Parameters
-        __________
+        ----------
         auth : CAPAuth
             The CAPAuth object needed to query the Stanford CAP API.
         """
@@ -31,7 +31,7 @@ class CAPClient():
         Use a UID to query the CAP API for a profile.
 
         Parameters
-        __________
+        ----------
         uid : string
             The UID to query.
         community : string
@@ -65,7 +65,7 @@ class CAPProfile():
         The constructor for the CAPProfile class.
 
         Parameters
-        __________
+        ----------
         profile : dict
             A dict object returned from a CAPClient.
         cap_client : CAPClient

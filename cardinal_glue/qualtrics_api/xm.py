@@ -19,7 +19,7 @@ class Directory():
         The constructor for the Directory class.
 
         Parameters
-        __________
+        ----------
         directoryID : string
             The Qualtrics directoryId value for the directory represented by the object.
         auth : QualtricsAuth
@@ -116,7 +116,7 @@ class Directory():
             The name of the MailingList.
 
         Returns
-        _______
+        -------
         The Qualtrics mailingListId value of the MailingList.
         """
         index = self.mailinglist_frame.index[self.mailinglist_frame['name'] == name]
@@ -136,7 +136,7 @@ class Directory():
             The name of the MailingList.
 
         Returns
-        _______
+        -------
         The Qualtrics MailingList.
         """
         index = self.mailinglist_frame.index[self.mailinglist_frame['name'] == name]
@@ -156,7 +156,7 @@ class MailingList():
         The constructor for the MailingList class.
 
         Parameters
-        __________
+        ----------
         auth : QualtricsAuth
             The QualtricsAuth object needed to query the Qualtrics API.
         get_contact_dates : bool
@@ -198,7 +198,7 @@ class MailingList():
         Return a list of contacts in a specified mailing list.
 
         Parameters
-        __________
+        ----------
         get_contact_dates : bool
             Whether to query contact creation and modification time stamps.
             Significantly increases object initialization time.
@@ -243,7 +243,7 @@ class MailingList():
         Create a contact in the Qualtrics mailing list.
 
         Parameters
-        __________
+        ----------
         **kwargs : dict
             Additional keyword arguments that are included to accommodate the creation of more information-dense mailing lists.
             See https://api.qualtrics.com/29ece8921ba05-create-contact-request for more details.
@@ -268,7 +268,7 @@ class MailingList():
         Delete contacts from the Qualtrics mailing list.
 
         Parameters
-        __________
+        ----------
         contactID_list : list
             The Qualtrics contactId values of the contacts to remove from the Qualtrics mailing list.
         """
@@ -290,13 +290,13 @@ class MailingList():
         """
         Look up Qualtrics contactId values from external reference values.
 
-        Paramters
-        _________
+        Parameters
+        ----------
         extref_list : list
             The list of external reference values.
 
         Returns
-        _______
+        -------
         contactID_list : list
             A list of Qualtrics contactId values.
         """
@@ -319,13 +319,13 @@ class MailingList():
         """
         Look up contact external reference values from Qualtrics contactId values.
 
-        Paramters
-        _________
+        Parameters
+        ----------
         contactID_list : list
             The list of Qualtrics contactId values.
 
         Returns
-        _______
+        -------
         extref_list : list
             A list of external reference values.
         """

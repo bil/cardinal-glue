@@ -11,7 +11,7 @@ class CAPAuth(Auth):
     Extends the Auth class.
 
     Attributes
-    __________
+    ----------
     __CAP_AUTH_JSON_NAME : string
         The name of the file containing authentication information for the Stanford CAP API.
     """
@@ -22,7 +22,7 @@ class CAPAuth(Auth):
         The constructor for the CAPAuth class.
 
         Parameters
-        __________
+        ----------
         auto_auth : bool
             User choice as whether to automatically attempt authentication with the Stanford CAP API while instantiating the object.
         """
@@ -60,7 +60,7 @@ class CAPAuth(Auth):
         from environment variables for containerized deployments.
 
         Parameters
-        __________
+        ----------
         method : str
             The HTTP method for the request (e.g., 'get', 'post').
         url : str
@@ -69,7 +69,7 @@ class CAPAuth(Auth):
             Additional keyword arguments to pass to the `requests` library, such as 'params' or 'json'.
 
         Returns
-        _______
+        -------
         response : requests.Response
             The Response object from the final, authenticated API call.
 

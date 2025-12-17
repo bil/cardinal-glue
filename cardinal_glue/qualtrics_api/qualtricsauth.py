@@ -22,7 +22,7 @@ class QualtricsAuth(Auth):
     Extends the Auth class.
     
     Attributes
-    __________
+    ----------
     __QUALTRICS_AUTH_JSON_NAME : string
         The name of the file containing authentication information for the Qualtrics API.
     """
@@ -33,7 +33,7 @@ class QualtricsAuth(Auth):
         The constructor for the QualtricsAuth class.
 
         Parameters
-        __________
+        ----------
         auto_auth : bool
             User choice as whether to automatically attempt authentication with the Qualtrics API while instantiating the object.
         """

@@ -23,7 +23,7 @@ class Survey():
         The constructor for the Survey class.
 
         Parameters
-        __________
+        ----------
         survey_ID : string
             The Qualtrics surveyId value for the survey represented by the object.
         auth : QualtricsAuth
@@ -45,15 +45,15 @@ class Survey():
     def get_question(self, question_ID=None):
         """
         Retrieve a question definition.
-        If no value is provided for 'question_ID', all question definitons are returned.
+        If no value is provided for 'question_ID', all question definitions are returned.
 
-        Paramters
-        _________
+        Parameters
+        ----------
         question_ID : string
             The Qualtrics questionId value for the question to retrieve.
 
         Returns
-        _______
+        -------
         question_data : dict
             The question definition.
         """
@@ -81,11 +81,11 @@ class Survey():
         Update a question definition.
 
         Parameters
-        __________
+        ----------
         question_ID : string
             The Qualtrics questionId value for the question to update.
         updates : dict
-            A dict containg valid key-value pairs to update the question definition with.
+            A dict containing valid key-value pairs to update the question definition with.
             See https://api.qualtrics.com/00d49b25519bb-update-question for valid keys.
         """
         if not isinstance(updates, dict):
