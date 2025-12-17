@@ -1,9 +1,13 @@
 import requests
+import logging
 import pandas as pd
 import json
 import datetime
-from cardinal_glue.qualtrics_api.qualtricsauth import QualtricsAuth
+from cardinal_glue.qualtrics_api.qualtricsauth import QualtricsAuth, QualtricsAPIError
 from cardinal_glue.auth.core import InvalidAuthInfo, CannotInstantiateServiceObject
+
+
+logger = logging.getLogger(__name__)
 
 
 class Directory():
@@ -35,11 +39,34 @@ class Directory():
             except ValueError:
                 raise CannotInstantiateServiceObject()
         if not self._directoryID:
-            print('No directory ID provided. Using the first available directory ID.')
+            logger.info('No directory ID provided. Using the first available directory ID.')
             self._directoryID = self._auth.available_directories[0]
-        if get_contact_dates:
-            print("Initializing MailingList with contact dates. This may take a while.")
-        self.get_mailinglists(get_contact_dates=get_contact_dates)
+        
+        self._mailinglists = None
+        self._mailinglist_frame = None
+        self._get_contact_dates = get_contact_dates
+
+    @property
+    def mailinglists(self):
+        if self._mailinglists is None:
+            if self._get_contact_dates:
+                logger.info("Initializing MailingList with contact dates. This may take a while.")
+            self.get_mailinglists(get_contact_dates=self._get_contact_dates)
+        return self._mailinglists
+
+    @mailinglists.setter
+    def mailinglists(self, value):
+        self._mailinglists = value
+
+    @property
+    def mailinglist_frame(self):
+        if self._mailinglist_frame is None:
+            self.mailinglists # Trigger population
+        return self._mailinglist_frame
+
+    @mailinglist_frame.setter
+    def mailinglist_frame(self, value):
+        self._mailinglist_frame = value
 
     def get_mailinglists(self, get_contact_dates=False, next_page_url=None):
         """
@@ -76,8 +103,8 @@ class Directory():
             return dict_list
         mailinglists = [MailingList(directoryID=self._directoryID,auth=self._auth,get_contact_dates=get_contact_dates,**i) for i in dict_list]
         df_mailinglists = pd.DataFrame(dict_list)
-        self.mailinglists =  mailinglists
-        self.mailinglist_frame =  df_mailinglists
+        self._mailinglists =  mailinglists
+        self._mailinglist_frame =  df_mailinglists
   
     def get_ID_from_name(self, name):
         """
@@ -117,7 +144,7 @@ class Directory():
             index = index[0]
             return self.mailinglists[index]
         else:
-            print(f"MailingList with the name '{name}' not found.")
+            logger.info(f"MailingList with the name '{name}' not found.")
     
            
 class MailingList():
@@ -152,7 +179,19 @@ class MailingList():
                 self._auth = QualtricsAuth()
             except InvalidAuthInfo:
                 raise CannotInstantiateServiceObject()
-        self.get_contacts(get_contact_dates=get_contact_dates)
+        
+        self._contacts = None
+        self._get_contact_dates = get_contact_dates
+
+    @property
+    def contacts(self):
+        if self._contacts is None:
+            self.get_contacts(get_contact_dates=self._get_contact_dates)
+        return self._contacts
+
+    @contacts.setter
+    def contacts(self, value):
+        self._contacts = value
 
     def get_contacts(self, get_contact_dates=False, next_page_url=None):
         """
@@ -197,7 +236,7 @@ class MailingList():
                         contact_df.loc[i, 'creationDate'] = datetime.datetime.fromtimestamp(creationDate).strftime('%Y-%m-%d')
                         lastModified = request.json()['result']['lastModified']/1000
                         contact_df.loc[i, 'lastModified'] = datetime.datetime.fromtimestamp(lastModified).strftime('%Y-%m-%d')
-            self.contacts = contact_df
+            self._contacts = contact_df
 
     def create_contact(self, **kwargs):
         """
@@ -219,9 +258,10 @@ class MailingList():
 
         response = requests.post(url, headers=headers, data=data_json)
         if response.status_code == 200:
-            print(f"Contact for {data['extRef']} was successfully created in MailingList {self.name}.")
+            logger.info(f"Contact for {data['extRef']} was successfully created in MailingList {self.name}.")
         else:
-            print(f'Error {response.status_code}')
+            logger.error(f'Error {response.status_code}')
+            raise QualtricsAPIError(f"Failed to create contact for {data['extRef']}: {response.status_code}")
 
     def delete_contacts(self, contactID_list):
         """
@@ -241,9 +281,10 @@ class MailingList():
             response = requests.delete(url, headers=headers)
             if response.status_code == 200:
                 # response returns 200 even if contactID doesn't exist
-                print(f"No deletion errors. Confirm manually that {self.get_extref_from_contactID(contactID)[0]} was successfully deleted from MailingList {self.name}.")
+                logger.info(f"No deletion errors. Confirm manually that {self.get_extref_from_contactID(contactID)[0]} was successfully deleted from MailingList {self.name}.")
             else:
-                print(f'Error {response.status_code}')
+                logger.error(f'Error {response.status_code}')
+                raise QualtricsAPIError(f"Failed to delete contact {contactID}: {response.status_code}")
        
     def get_contactID_from_extref(self, extref_list):
         """
@@ -260,7 +301,7 @@ class MailingList():
             A list of Qualtrics contactId values.
         """
         if 'extRef' not in self.contacts.columns:
-            print(f'MailingList {self.name} has no contacts.')
+            logger.info(f'MailingList {self.name} has no contacts.')
             return
         contactID_list = []
         if type(extref_list) is str:
@@ -271,7 +312,7 @@ class MailingList():
                 index = index[0]
                 contactID_list.append(self.contacts['contactId'][index])
             else:
-                print(f"ExtRef '{extref}' was not found in MailingList {self.name}.")
+                logger.info(f"ExtRef '{extref}' was not found in MailingList {self.name}.")
         return contactID_list
 
     def get_extref_from_contactID(self, contactID_list):
@@ -289,7 +330,7 @@ class MailingList():
             A list of external reference values.
         """
         if 'extRef' not in self.contacts.columns:
-            print(f'MailingList {self.name} has no contacts.')
+            logger.info(f'MailingList {self.name} has no contacts.')
             return
         extref_list = []
         if type(contactID_list) is str:
@@ -300,6 +341,6 @@ class MailingList():
                 index = index[0]
                 extref_list.append(self.contacts['extRef'][index])
             else:
-                print(f"ContactId '{contactID}' was not found in MailingList {self.name}.")
+                logger.info(f"ContactId '{contactID}' was not found in MailingList {self.name}.")
         return extref_list
     

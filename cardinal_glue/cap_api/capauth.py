@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import requests
 from cardinal_glue.auth.core import Auth, InvalidAuthInfo
 
@@ -27,6 +28,8 @@ class CAPAuth(Auth):
         """
         super().__init__()
         self._auth_method = None
+        self._access_token = None
+        self._token_expires_at = None
         if auto_auth:
             self.authenticate()
 
@@ -82,11 +85,24 @@ class CAPAuth(Auth):
             token_auth = (cap_creds['client_id'], cap_creds['client_secret'])
         elif self._auth_method == 'file':
             token_auth = (self._client_id, self._client_secret)
-        token_url = 'https://authz.stanford.edu/oauth/token'
-        token_data = {'grant_type' : 'client_credentials'}
-        token_response = requests.post(token_url, data=token_data, auth=token_auth)
-        token_response.raise_for_status()
-        access_token = token_response.json()['access_token']
+        
+        # Check for cached token
+        now = time.time()
+        if self._access_token and self._token_expires_at and now < self._token_expires_at - 60:
+            access_token = self._access_token
+        else:
+            token_url = 'https://authz.stanford.edu/oauth/token'
+            token_data = {'grant_type' : 'client_credentials'}
+            token_response = requests.post(token_url, data=token_data, auth=token_auth)
+            token_response.raise_for_status()
+            token_json = token_response.json()
+            access_token = token_json['access_token']
+            
+            # Cache the token
+            self._access_token = access_token
+            # Default expiration is usually 3600s, but let's be safe or read 'expires_in' if available
+            expires_in = token_json.get('expires_in', 3600)
+            self._token_expires_at = now + expires_in
 
         headers = {'Authorization': f'Bearer {access_token}'}
         if 'headers' in kwargs:

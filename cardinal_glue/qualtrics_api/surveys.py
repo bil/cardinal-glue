@@ -6,8 +6,12 @@ import json
 import io
 import sys
 import time
-from cardinal_glue.qualtrics_api.qualtricsauth import QualtricsAuth
+import logging
+from cardinal_glue.qualtrics_api.qualtricsauth import QualtricsAuth, QualtricsAPIError
 from cardinal_glue.auth.core import InvalidAuthInfo, CannotInstantiateServiceObject
+
+
+logger = logging.getLogger(__name__)
 
 
 class Survey():
@@ -64,12 +68,13 @@ class Survey():
             question_data = get_response.json()['result']
             if not question_ID:
                 question_data = question_data['elements']
-                print(f'All questions successfully retrieved.')  
+                logger.info(f'All questions successfully retrieved.')  
             else:
-                print(f'Question {question_ID} successfully retrieved.')    
+                logger.info(f'Question {question_ID} successfully retrieved.')    
             return question_data
         else:
-            print(f'Unable to retrieve question {question_ID} : {get_response}')
+            logger.error(f'Unable to retrieve question {question_ID} : {get_response}')
+            raise QualtricsAPIError(f"Unable to retrieve question {question_ID}: {get_response.status_code}")
             
     def update_question(self, question_ID, updates):
         """
@@ -96,7 +101,7 @@ class Survey():
 
         put_response = requests.request('PUT', url_put, headers=headers, data=question_data_json)
         if put_response.status_code == 200:
-            print(f'Question {question_ID} successfully updated.') 
+            logger.info(f'Question {question_ID} successfully updated.') 
             url_post = f'https://{self._auth._data_center}.qualtrics.com/API/v3/survey-definitions/{self._survey_ID}/versions'
             publish_data = {
                 "Description": "",
@@ -110,18 +115,19 @@ class Survey():
                 put_response = requests.request('PUT', url_put, headers=headers, data=question_data_json)
                 retry_count += 1
                 if retry_count > max_retries:
-                    print(f"Exceeded maximum retries. Unable to update question {question_ID} : {put_response}")
-                    return
+                    logger.error(f"Exceeded maximum retries. Unable to update question {question_ID} : {put_response}")
+                    raise QualtricsAPIError(f"Exceeded maximum retries updating question {question_ID}")
                 sleep_interval = 2 ** retry_count
-                print(f"Trying update question again in {sleep_interval} seconds")
+                logger.info(f"Trying update question again in {sleep_interval} seconds")
                 time.sleep(sleep_interval) 
         else:
-            print(f'Unable to update question {question_ID} : {put_response}')
-            return
+            logger.error(f'Unable to update question {question_ID} : {put_response}')
+            raise QualtricsAPIError(f"Unable to update question {question_ID}: {put_response.status_code}")
         if post_response.status_code == 200:
-            print(f'Survey {self._survey_ID} successfully published.') 
+            logger.info(f'Survey {self._survey_ID} successfully published.') 
         else:
-            print(f'Unable to publish survey {self._survey_ID} : {post_response}')
+            logger.error(f'Unable to publish survey {self._survey_ID} : {post_response}')
+            raise QualtricsAPIError(f"Unable to publish survey {self._survey_ID}: {post_response.status_code}")
 
     def pull_survey_responses(self):
         """
@@ -155,8 +161,8 @@ class Survey():
         try:
             return download_request_response.json()["result"]["progressId"]
         except KeyError:
-            print(download_request_response.json())
-            sys.exit(2)
+            logger.error(download_request_response.json())
+            raise QualtricsAPIError(f"Failed to start response export: {download_request_response.text}")
 
     def _get_response_export_progress(self, base_url, progress_id, limit_retry=True):
         """
@@ -181,17 +187,17 @@ class Survey():
             check_response_result = request_check_response.json()["result"]
             file_ID = check_response_result.get('fileId')
             request_check_progress = request_check_response.json()["result"]["percentComplete"]
-            print(f"Export is {int(request_check_progress)}% complete")
+            logger.info(f"Export is {int(request_check_progress)}% complete")
             progress_status = request_check_response.json()["result"]["status"]
             if progress_status not in ["complete", "failed"]:
                 retry_count += 1
                 if limit_retry and retry_count > max_retries:
-                    print("Exceeded maximum retries. Exiting.")
-                    sys.exit(1)
+                    logger.error("Exceeded maximum retries. Exiting.")
+                    raise QualtricsAPIError("Exceeded maximum retries checking export progress.")
                 sleep_interval = 2 ** retry_count
-                print(f"Checking again in {sleep_interval} seconds")
+                logger.info(f"Checking again in {sleep_interval} seconds")
                 time.sleep(sleep_interval) 
-        print("Ready to download.")
+        logger.info("Ready to download.")
         return file_ID
 
     def _get_response_export_file(self, base_url, file_ID):

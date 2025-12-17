@@ -2,8 +2,12 @@ import google.auth
 import sqlite3
 import json
 import os
+import logging
 import shutil
 from cardinal_glue.auth.core import Auth, InvalidAuthInfo
+
+
+logger = logging.getLogger(__name__)
 
 if os.getenv("COLAB_RELEASE_TAG"):
     import google.colab.auth
@@ -37,7 +41,7 @@ def _install_creds(db_path, db_name, json_path, json_name):
         # print(f'DB file successfully converted to credentials and saved at {json_path}.')
         return True
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logger.error(f"An error occurred: {e}")
         return False
 
 
@@ -153,10 +157,10 @@ class GoogleAuth(Auth):
         if file_type == '.json':
             json_exists = True
             os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = file_path
-            print(f'The path to the Google credentials file has been set to {file_path}.')
+            logger.info(f'The path to the Google credentials file has been set to {file_path}.')
         elif file_type == '.db':
             if _install_creds(self._AUTH_PATH, self.__GCLOUD_DB_DEFAULT_NAME, self._AUTH_PATH, self.__GOOGLE_AUTH_JSON_NAME):
-                print(f'A Google credentials file has been saved to {os.path.join(self._AUTH_PATH, self.__GOOGLE_AUTH_JSON_NAME)}.')
+                logger.info(f'A Google credentials file has been saved to {os.path.join(self._AUTH_PATH, self.__GOOGLE_AUTH_JSON_NAME)}.')
                         
     def prepare_gdrivefs_auth(self):
         """

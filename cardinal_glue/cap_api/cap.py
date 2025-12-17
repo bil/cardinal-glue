@@ -1,6 +1,9 @@
-import requests
+import logging
 from cardinal_glue.cap_api.capauth import CAPAuth
 from cardinal_glue.auth.core import InvalidAuthInfo, CannotInstantiateServiceObject
+
+
+logger = logging.getLogger(__name__)
 
 
 class CAPClient():
@@ -37,8 +40,8 @@ class CAPClient():
         valid_communities=['public','stanford','hidden','stanford_full','stanford_full_hidden']
         if community:
             if community not in valid_communities:
-                print("Please enter a valid value for community.")
-                return
+                logger.error("Please enter a valid value for community.")
+                raise ValueError(f"Invalid community: {community}. Must be one of {valid_communities}")
             url = f'https://cap.stanford.edu/cap-api/api/profiles/v1?uids={uid}&community={community}'
         else:
             url = f'https://cap.stanford.edu/cap-api/api/profiles/v1?uids={uid}'

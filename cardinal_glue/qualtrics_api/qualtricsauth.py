@@ -1,15 +1,26 @@
 import os
 import re
 import json
-import requests
+import logging
 from cardinal_glue.auth.core import Auth, InvalidAuthInfo
+
+
+logger = logging.getLogger(__name__)
+
+class QualtricsError(Exception):
+    """Base class for Qualtrics API errors."""
+    pass
+
+class QualtricsAPIError(QualtricsError):
+    """Raised when the Qualtrics API returns an unexpected error."""
+    pass
 
         
 class QualtricsAuth(Auth):
     """
     A class representing authentication with the Qualtrics API.
     Extends the Auth class.
-
+    
     Attributes
     __________
     __QUALTRICS_AUTH_JSON_NAME : string
