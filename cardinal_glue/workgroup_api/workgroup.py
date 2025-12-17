@@ -25,6 +25,10 @@ class WorkgroupAPIError(WorkgroupError):
     """Raised when the Workgroup API returns an unexpected error."""
     pass
 
+class WorkgroupAlreadyExists(WorkgroupError):
+    """Raised when creating a workgroup that already exists (409)."""
+    pass
+
 
 
 class WorkgroupManager():
@@ -90,10 +94,13 @@ class WorkgroupManager():
             logger.info(f'Workgroup {workgroup_name} created successfully.')
         elif response.status_code == 409:
             logger.info(f'Workgroup {workgroup_name} already exists.')
+            raise WorkgroupAlreadyExists(f"Workgroup '{workgroup_name}' already exists.")
         elif response.status_code == 401:
             logger.error('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
+            raise WorkgroupPermissionDenied("Permission denied creating workgroup.")
         else:
             logger.error(f'Error {response.status_code}')
+            raise WorkgroupAPIError(f"Error creating workgroup: {response.status_code}")
         
         try:
             ret = response.json()
@@ -108,12 +115,15 @@ class WorkgroupManager():
         response = self._auth.make_request('delete', url=url)
         if response.status_code == 200:
             logger.info(f'Workgroup {workgroup_name} deleted successfully.')
-        elif response.status_code == 400:
+        elif response.status_code == 404:
             logger.info(f'Workgroup {workgroup_name} not found.')
+            raise WorkgroupNotFound(f"Workgroup '{workgroup_name}' not found.")
         elif response.status_code == 401:
             logger.error('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
+            raise WorkgroupPermissionDenied("Permission denied deleting workgroup.")
         else:
             logger.error(f'Error {response.status_code}')
+            raise WorkgroupAPIError(f"Error deleting workgroup: {response.status_code}")
 
         try:
             ret = response.json()
