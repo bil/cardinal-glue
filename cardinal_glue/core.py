@@ -359,9 +359,7 @@ def _validate_workgroup(workgroup_stem=None, list_name=None, workgroup=None):
         raise TypeError("Please specify 'workgroup' as a valid Workgroup object.")  
     if not workgroup:
         list_name = workgroup.name
-        valid_list_names = get_workgroup_list(workgroup_stem)
-        if list_name not in valid_list_names:
-            raise ValueError('Please provide a valid workgroup name.')
+        # Optimization: Instantiate directly instead of searching
         workgroup = Workgroup(workgroup_stem, list_name)
     return workgroup
 

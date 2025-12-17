@@ -4,12 +4,9 @@ import tempfile
 import logging
 from cardinal_glue.auth.core import Auth, InvalidAuthInfo
 
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
+
 logger = logging.getLogger(__name__)
-if os.getenv('CARDINAL_LOGGING'):
-    logger.setLevel(os.getenv('CARDINAL_LOGGING').upper())
-else:
-    logger.setLevel('ERROR') 
+
 
 class WorkgroupAuth(Auth):
     """

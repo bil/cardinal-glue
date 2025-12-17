@@ -4,12 +4,27 @@ import logging
 from cardinal_glue.workgroup_api.workgroupauth import WorkgroupAuth
 from cardinal_glue.auth.core import InvalidAuthInfo, CannotInstantiateServiceObject
 
-logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s')
+
+
 logger = logging.getLogger(__name__)
-if os.getenv('CARDINAL_LOGGING'):
-    logger.setLevel(os.getenv('CARDINAL_LOGGING').upper())
-else:
-    logger.setLevel('ERROR') 
+
+
+class WorkgroupError(Exception):
+    """Base class for Workgroup API errors."""
+    pass
+
+class WorkgroupNotFound(WorkgroupError):
+    """Raised when a workgroup is not found (404)."""
+    pass
+
+class WorkgroupPermissionDenied(WorkgroupError):
+    """Raised when permission is denied (401)."""
+    pass
+
+class WorkgroupAPIError(WorkgroupError):
+    """Raised when the Workgroup API returns an unexpected error."""
+    pass
+
 
 
 class WorkgroupManager():
@@ -125,28 +140,83 @@ class Workgroup():
         auth : WorkgroupAuth
             The WorkgroupAuth object needed to query the Stanford Workgroup API.
         """
-        self.members = None
-        self.admins = None
-        self.privgroup_members = None
-        self.privgroup_admins = None
-        self.member_details = None
+        self._members = None
+        self._admins = None
+        self._privgroup_members = None
+        self._privgroup_admins = None
+        self._member_details = None
         self._auth = auth
         self.stem = stem
         self.name = workgroup
-        self.description = None
-        self.filter = None
-        self.visibility = None
-        self.reusable = None
-        self.integrations = None
+        self._description = None
+        self._filter = None
+        self._visibility = None
+        self._reusable = None
+        self._integrations = None
+        
+        self._populated = False
+        self._privgroup_populated = False
+        self._privgroup = privgroup
+
         if not self._auth:
             try:
                 self._auth = WorkgroupAuth()
             except InvalidAuthInfo:
                 raise CannotInstantiateServiceObject()
-        if privgroup:
-            self.populate_privgroup()
-        else:
-            self.populate_workgroup()
+
+    @property
+    def members(self):
+        if not self._populated: self.populate_workgroup()
+        return self._members
+
+    @members.setter
+    def members(self, value):
+        self._members = value
+
+    @property
+    def admins(self):
+        if not self._populated: self.populate_workgroup()
+        return self._admins
+
+    @admins.setter
+    def admins(self, value):
+        self._admins = value
+
+    @property
+    def member_details(self):
+        if not self._populated: self.populate_workgroup()
+        return self._member_details
+
+    @member_details.setter
+    def member_details(self, value):
+        self._member_details = value
+
+    @property
+    def description(self):
+        if not self._populated: self.populate_workgroup()
+        return self._description
+
+    @description.setter
+    def description(self, value):
+        self._description = value
+
+    @property
+    def privgroup_members(self):
+        if not self._privgroup_populated: self.populate_privgroup()
+        return self._privgroup_members
+
+    @privgroup_members.setter
+    def privgroup_members(self, value):
+        self._privgroup_members = value
+        
+    @property
+    def privgroup_admins(self):
+        if not self._privgroup_populated: self.populate_privgroup()
+        return self._privgroup_admins
+
+    @privgroup_admins.setter
+    def privgroup_admins(self, value):
+        self._privgroup_admins = value
 
     def populate_workgroup(self):
         """
@@ -155,21 +225,25 @@ class Workgroup():
         url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{self.stem}:{self.name}'
         response = self._auth.make_request('get', url)
         if response.status_code == 200:
-            self.member_details = response.json()['members']
-            self.admins = response.json()['administrators']
-            self.members = [i['id'] for i in self.member_details]
-            self.description = response.json()['description']
-            self.filter = response.json()['filter']
-            self.visibility = response.json()['visibility']
-            self.reusable = response.json()['reusable']
-            self.integrations = response.json()['integrations']
+            self._member_details = response.json().get('members', [])
+            self._admins = response.json().get('administrators', [])
+            self._members = [i['id'] for i in self._member_details]
+            self._description = response.json().get('description')
+            self._filter = response.json().get('filter')
+            self._visibility = response.json().get('visibility')
+            self._reusable = response.json().get('reusable')
+            self._integrations = response.json().get('integrations')
+            self._populated = True
             logger.info(f'Workgroup {self.name} populated.')
         elif response.status_code == 404:
             logger.error(f"Workgroup '{self.name}' not found.")
+            raise WorkgroupNotFound(f"Workgroup '{self.name}' not found.")
         elif response.status_code == 401:
             logger.error('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
+            raise WorkgroupPermissionDenied("Permission denied accessing workgroup.")
         else:
             logger.error(f'Error {response.status_code}')
+            raise WorkgroupAPIError(f"Workgroup API error: {response.status_code}")
  
     def populate_privgroup(self):
         """
@@ -178,17 +252,21 @@ class Workgroup():
         url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{self.stem}:{self.name}/privgroup'
         response = self._auth.make_request('get', url)
         if response.status_code == 200:
-            self.privgroup_members = response.json()['members']
-            self.privgroup_admins = response.json()['administrators']
+            self._privgroup_members = response.json().get('members', [])
+            self._privgroup_admins = response.json().get('administrators', [])
+            self._privgroup_populated = True
             logger.info(f'Privgroup information for Workgroup {self.name} populated.')
         elif response.status_code == 404:
             logger.error(f"Workgroup '{self.name}' not found.")
+            raise WorkgroupNotFound(f"Workgroup '{self.name}' not found.")
         elif response.status_code == 401:
             logger.error('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
+            raise WorkgroupPermissionDenied("Permission denied accessing workgroup.")
         else:
             logger.error(f'Error {response.status_code}')
+            raise WorkgroupAPIError(f"Workgroup API error: {response.status_code}")
 
-    def add_members(self, member_list, member_type='USER', member_stem=None):
+    def add_members(self, member_list, member_type='USER', member_stem=None, filter_members=False):
         """
         Add members to a workgroup.
 
@@ -202,6 +280,8 @@ class Workgroup():
             The stem of the workgroup member to add. 
             Only used if member_type is 'WORKGROUP' and the member name does not contain a colon.
             Defaults to self.stem if not provided.
+        filter_members : bool
+            Whether to check if members exist before adding. Defaults to False (faster).
         """
         member_type = member_type.upper()
         if member_type not in ['USER', 'WORKGROUP']:
@@ -210,13 +290,14 @@ class Workgroup():
         url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{self.stem}:{self.name}/members/'
         if (type(member_list) is not list):
             member_list = [member_list]
-        # self.populate_workgroup()
         
-        # Filter existing members locally to reduce API calls
-        member_list = list(set(member_list)-set(self.members))
+        # Filter existing members locally to reduce API calls IF requested
+        if filter_members:
+            member_list = list(set(member_list)-set(self.members))
         
         if not member_list:
-            logger.info(f'All of the provided members were already in {self.name}')
+            if filter_members:
+                logger.info(f'All of the provided members were already in {self.name}')
             return
 
         for member in member_list:
@@ -229,13 +310,21 @@ class Workgroup():
                 logger.info(f'{member} was added successfully to Workgroup {self.name}')
             elif response.status_code == 409:
                 logger.info(f'{member} is already in {self.name}')
+            elif response.status_code == 404:
+                # 404 on PUT usually implies the workgroup itself is missing (or member lookup failed weirdly)
+                # But 'populate' check usually catches workgroup missing.
+                # If the TARGET (self.name) is missing:
+                logger.error(f"Workgroup '{self.name}' not found.")
+                raise WorkgroupNotFound(f"Workgroup '{self.name}' not found.")
             elif response.status_code == 401:
                 logger.error('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
+                raise WorkgroupPermissionDenied("Permission denied adding member.")
             else:
                 logger.error(f'Error {response.status_code}')
+                raise WorkgroupAPIError(f"Error adding member {member}: {response.status_code}")
         self.populate_workgroup()
 
-    def remove_members(self, member_list, member_type='USER', member_stem=None):
+    def remove_members(self, member_list, member_type='USER', member_stem=None, filter_members=False):
         """
         Remove members from a workgroup.
 
@@ -257,13 +346,14 @@ class Workgroup():
         url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{self.stem}:{self.name}/members/'
         if (type(member_list) is not list):
             member_list = [member_list]
-        # self.populate_workgroup()
 
-        # Filter members to remove locally to reduce API calls
-        member_list = list(set(member_list) & set(self.members))
+        # Filter members to remove locally to reduce API calls IF requested
+        if filter_members:
+            member_list = list(set(member_list) & set(self.members))
              
         if not member_list:
-            logger.info(f'None of the provided members were in {self.name}')
+            if filter_members:
+                logger.info(f'None of the provided members were in {self.name}')
             return
 
         status_codes = []
@@ -277,8 +367,13 @@ class Workgroup():
                 logger.info(f'{member} was removed successfully from Workgroup {self.name}')
             elif response.status_code == 404:
                 logger.info(f'{member} is not in {self.name}')
+                # If the workgroup itself is missing, DELETE on members usually returns 404 too?
+                # It's hard to distinguish "Member not found" from "Workgroup not found" purely on a DELETE /members/member call return of 404 without body inspection.
+                # Assuming "Member not in workgroup" is the common case (non-fatal).
             elif response.status_code == 401:
                 logger.error('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
+                raise WorkgroupPermissionDenied("Permission denied removing member.")
             else:
                 logger.error(f'Error {response.status_code}')
+                raise WorkgroupAPIError(f"Error removing member {member}: {response.status_code}")
         self.populate_workgroup()
