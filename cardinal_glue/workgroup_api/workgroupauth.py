@@ -13,6 +13,13 @@ class WorkgroupAuth(Auth):
     A class representing authentication with the Stanford Workgroup API.
     Extends the Auth class.
 
+    Authentication Priority
+    _______________________
+    1. `creds` parameter passed to constructor (explicit file paths)
+    2. `WORKGROUP_CERT_PATH` + `WORKGROUP_KEY_PATH` environment variables (file paths)
+    3. `WORKGROUP_CERT` + `WORKGROUP_KEY` environment variables (cert/key content, written to temp files)
+    4. Default paths: ~/.config/cardinal-glue/stanford_workgroup.{cert,key}
+
     Attributes
     __________
     __WORKGROUP_AUTH_CERT_NAME : string
@@ -49,16 +56,30 @@ class WorkgroupAuth(Auth):
     def authenticate(self):
         """
         Determines method of authenticating with the Stanford Workgroup API.
-        Prioritizes environment variables, falls back to local files.
+        
+        Priority order:
+        1. creds parameter (explicit paths passed to constructor)
+        2. WORKGROUP_CERT_PATH + WORKGROUP_KEY_PATH env vars (file paths)
+        3. WORKGROUP_CERT + WORKGROUP_KEY env vars (content, written to temp files)
+        4. Default paths (~/.config/cardinal-glue/stanford_workgroup.{cert,key})
         """
-        if "WORKGROUP_CERT" in os.environ and "WORKGROUP_KEY" in os.environ:
+        if self._credentials:
+            self._auth_method = 'file'
+        elif "WORKGROUP_CERT_PATH" in os.environ and "WORKGROUP_KEY_PATH" in os.environ:
+            self._auth_method = 'file'
+            cert_path = os.environ.get("WORKGROUP_CERT_PATH")
+            key_path = os.environ.get("WORKGROUP_KEY_PATH")
+            self._credentials = (cert_path, key_path)
+        elif "WORKGROUP_CERT" in os.environ and "WORKGROUP_KEY" in os.environ:
             self._auth_method = 'memory'
         else:
             self._auth_method = 'file'
-            if not self._credentials:
-                cert_path = os.path.join(self._AUTH_PATH, self.__WORKGROUP_AUTH_CERT_NAME)
-                key_path = os.path.join(self._AUTH_PATH, self.__WORKGROUP_AUTH_KEY_NAME)
-                self._credentials = (cert_path, key_path)
+            cert_path = os.path.join(self._AUTH_PATH, self.__WORKGROUP_AUTH_CERT_NAME)
+            key_path = os.path.join(self._AUTH_PATH, self.__WORKGROUP_AUTH_KEY_NAME)
+            self._credentials = (cert_path, key_path)
+        
+        # Validate file paths exist for file-based auth
+        if self._auth_method == 'file':
             if not (os.path.exists(self._credentials[0]) and os.path.exists(self._credentials[1])):
                 raise InvalidAuthInfo('Please ensure that cert and key file paths are valid.')
         url=f'https://workgroupsvc.stanford.edu/workgroups/2.0/search/mockurl'
