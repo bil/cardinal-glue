@@ -30,7 +30,7 @@ credentials = gauth.credentials  # Use with Google client libraries
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to Google credentials JSON |
 | `CLOUDSDK_CONFIG` | Path to gcloud config directory |
 | `USE_AUTH_EPHEM` | Set to `0` to use file-based credentials |
-| `GOOGLE_CLOUD_PROJECT` | GCP project ID (for Firestore in Colab) |
+| `GOOGLE_CLOUD_PROJECT` | GCP project ID (for Firestore) |
 
 ---
 
@@ -194,11 +194,11 @@ from cardinal_glue.cap_api.cap import CAPClient, CAPProfile
 client = CAPClient()
 
 # Get a profile by UID
-profile = client.get_profile_from_uid("jsmith", community="stanford")
+profile = client.get_profile_from_uid("jsmith")
 
 # Access profile attributes
 print(profile.affiliation)   # e.g., "faculty"
-print(profile.organization)  # e.g., "Computer Science"
+print(profile.organization)  # e.g., "Neurocience"
 print(profile.position)      # e.g., "Professor"
 ```
 
