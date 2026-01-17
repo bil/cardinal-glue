@@ -109,7 +109,29 @@ class WorkgroupManager():
         ret['statusCode'] = response.status_code
         return ret
 
-    def delete_workgroup(self, name):
+    def _delete_google_link(self, name):
+        """
+        Private helper to unlink a Google Group integration.
+        """
+        workgroup_name = f'{self.stem}:{name}'
+        url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{workgroup_name}/links'
+        data = {'link': 'GOOGLE'}
+        
+        try:
+            response = self._auth.make_request('delete', url=url, params=data)
+            if response.status_code == 200:
+                logger.info(f'Successfully unlinked Google Group from {workgroup_name}.')
+            elif response.status_code == 404:
+                logger.info(f'Google Link not found for {workgroup_name} (skipping).')
+            else:
+                logger.warning(f'Failed to unlink Google Group for {workgroup_name}. Status: {response.status_code}')
+        except Exception as e:
+            logger.error(f"Exception during Google Group unlink: {e}")
+
+    def delete_workgroup(self, name, remove_google_link=False):
+        if remove_google_link:
+            self._delete_google_link(name)
+
         workgroup_name = f'{self.stem}:{name}'
         url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{workgroup_name}'
         response = self._auth.make_request('delete', url=url)
