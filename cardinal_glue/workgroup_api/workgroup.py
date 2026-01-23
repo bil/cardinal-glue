@@ -79,7 +79,7 @@ class WorkgroupManager():
             workgroup_list.append(temp)
         self.workgroup_list = workgroup_list
 
-    def create_workgroup(self, name, description, filter_in='NONE', reusable='TRUE', visibility='PRIVATE', privgroup='TRUE'):
+    def create_workgroup(self, name, description, filter_in='NONE', reusable='TRUE', visibility='PRIVATE', privgroup='TRUE', add_google_link=False):
         workgroup_name = f'{self.stem}:{name}'
         data={
             'description':description,           # workgroup description
@@ -102,6 +102,9 @@ class WorkgroupManager():
             logger.error(f'Error {response.status_code}')
             raise WorkgroupAPIError(f"Error creating workgroup: {response.status_code}")
         
+        if add_google_link:
+            self._add_google_link(name)
+        
         try:
             ret = response.json()
         except:
@@ -109,7 +112,26 @@ class WorkgroupManager():
         ret['statusCode'] = response.status_code
         return ret
 
-    def _delete_google_link(self, name):
+    def _add_google_link(self, name):
+        """
+        Private helper to link a Google Group integration.
+        """
+        workgroup_name = f'{self.stem}:{name}'
+        url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{workgroup_name}/links'
+        data = {'link': 'GOOGLE'}
+        
+        try:
+            response = self._auth.make_request('put', url=url, params=data)
+            if response.status_code == 201:
+                logger.info(f'Successfully linked Google Group to {workgroup_name}.')
+            elif response.status_code == 409:
+                logger.info(f'Google Group linkage already exists for {workgroup_name}.')
+            else:
+                logger.warning(f'Failed to link Google Group for {workgroup_name}. Status: {response.status_code}')
+        except Exception as e:
+            logger.error(f"Exception during Google Group link creation: {e}")
+
+    def _remove_google_link(self, name):
         """
         Private helper to unlink a Google Group integration.
         """
@@ -130,7 +152,7 @@ class WorkgroupManager():
 
     def delete_workgroup(self, name, remove_google_link=False):
         if remove_google_link:
-            self._delete_google_link(name)
+            self._remove_google_link(name)
 
         workgroup_name = f'{self.stem}:{name}'
         url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{workgroup_name}'
