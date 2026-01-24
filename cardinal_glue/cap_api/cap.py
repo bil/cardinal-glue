@@ -76,9 +76,12 @@ class CAPProfile():
             cap_client = CAPClient()
 
         cap_affiliation_dict = self.profile['affiliations']
-        cap_affiliation = list(cap_affiliation_dict.keys())[list(cap_affiliation_dict.values()).index(True)]
-        cap_affiliation = cap_affiliation.lower()[3:]
-        affiliation_out = cap_affiliation
+        # Collect all true affiliations as a list
+        true_affiliations = [
+            (k.lower()[3:] if k.startswith('cap') else k.lower())
+            for k, v in cap_affiliation_dict.items() if v is True
+        ]
+        affiliation_out = true_affiliations  # Now returns a list
         
         position_out = 'NULL'
         if 'contacts' in self.profile:
