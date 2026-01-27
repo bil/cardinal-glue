@@ -80,6 +80,7 @@ class WorkgroupManager():
         self.workgroup_list = workgroup_list
 
     def create_workgroup(self, name, description, filter_in='NONE', reusable='TRUE', visibility='PRIVATE', privgroup='TRUE', add_google_link=False):
+        name = name.lower()
         workgroup_name = f'{self.stem}:{name}'
         data={
             'description':description,           # workgroup description
@@ -116,6 +117,7 @@ class WorkgroupManager():
         """
         Private helper to link a Google Group integration.
         """
+        name = name.lower()
         workgroup_name = f'{self.stem}:{name}'
         url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{workgroup_name}/links'
         data = {'link': 'GOOGLE'}
@@ -135,6 +137,7 @@ class WorkgroupManager():
         """
         Private helper to unlink a Google Group integration.
         """
+        name = name.lower()
         workgroup_name = f'{self.stem}:{name}'
         url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{workgroup_name}/links'
         data = {'link': 'GOOGLE'}
@@ -151,6 +154,7 @@ class WorkgroupManager():
             logger.error(f"Exception during Google Group unlink: {e}")
 
     def delete_workgroup(self, name, remove_google_link=False):
+        name = name.lower()
         if remove_google_link:
             self._remove_google_link(name)
 
