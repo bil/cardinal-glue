@@ -29,6 +29,10 @@ class WorkgroupAlreadyExists(WorkgroupError):
     """Raised when creating a workgroup that already exists (409)."""
     pass
 
+class LinkageRemovalFailed(WorkgroupError):
+    """Raised when a linkage cannot be removed from a workgroup."""
+    pass
+
 
 
 class WorkgroupManager():
@@ -136,6 +140,12 @@ class WorkgroupManager():
     def _remove_google_link(self, name):
         """
         Private helper to unlink a Google Group integration.
+        
+        Returns
+        _______
+        bool
+            True if linkage was successfully removed or did not exist.
+            False if removal failed for other reasons.
         """
         name = name.lower()
         workgroup_name = f'{self.stem}:{name}'
@@ -146,17 +156,37 @@ class WorkgroupManager():
             response = self._auth.make_request('delete', url=url, params=data)
             if response.status_code == 200:
                 logger.info(f'Successfully unlinked Google Group from {workgroup_name}.')
+                return True
             elif response.status_code == 404:
                 logger.info(f'Google Link not found for {workgroup_name} (skipping).')
+                return True
+            elif response.status_code == 400:
+                # API returns 400 with specific message for non-existent linkage
+                try:
+                    message = response.json().get('message', '')
+                    if 'does not have linkage' in message:
+                        logger.info(f'Google Link not found for {workgroup_name} (skipping).')
+                        return True
+                except Exception:
+                    pass  # Fall through to warning below
+                logger.warning(f'Failed to unlink Google Group for {workgroup_name}. Status: {response.status_code}')
+                return False
             else:
                 logger.warning(f'Failed to unlink Google Group for {workgroup_name}. Status: {response.status_code}')
+                return False
         except Exception as e:
             logger.error(f"Exception during Google Group unlink: {e}")
+            return False
 
     def delete_workgroup(self, name, remove_google_link=False):
         name = name.lower()
         if remove_google_link:
-            self._remove_google_link(name)
+            success = self._remove_google_link(name)
+            if not success:
+                raise LinkageRemovalFailed(
+                    f"Failed to remove Google linkage for workgroup '{self.stem}:{name}'. "
+                    "Cannot delete workgroup with active linkage."
+                )
 
         workgroup_name = f'{self.stem}:{name}'
         url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{workgroup_name}'
