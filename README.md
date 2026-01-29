@@ -185,21 +185,24 @@ client = CAPClient(auth=auth)
 
 **Credential File:** `~/.config/cardinal-glue/cap.json`
 
-#### CAPClient & CAPProfile
+#### CAPClient
 
 ```python
-from cardinal_glue.cap_api.cap import CAPClient, CAPProfile
+from cardinal_glue.cap_api.cap import CAPClient
 
 # Initialize client
 client = CAPClient()
 
-# Get a profile by UID
+# Get a profile by UID (returns raw dict from API)
 profile = client.get_profile_from_uid("jsmith")
 
-# Access profile attributes
-print(profile.affiliation)   # e.g., "faculty"
-print(profile.organization)  # e.g., "Neurocience"
-print(profile.position)      # e.g., "Professor"
+# Access profile data directly
+print(profile['affiliations'])   # e.g., {'capFaculty': True, 'capStaff': False, ...}
+print(profile['displayName'])    # e.g., "John Smith"
+print(profile['contacts'])       # List of contact info dicts
+
+# Resolve organization codes to human-readable names
+org_name = client.get_org_from_code("AABB")  # e.g., "School of Medicine"
 ```
 
 ---

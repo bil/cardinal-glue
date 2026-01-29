@@ -47,62 +47,25 @@ class CAPClient():
             url = f'https://cap.stanford.edu/cap-api/api/profiles/v1?uids={uid}'
         response = self._auth.make_request('get', url).json()
         if 'values' in response:
-            return CAPProfile(response['values'][0], cap_client=self)
+            return response['values'][0]
+        return None
 
     def get_org_from_code(self, org_code):
-        url=f'https://cap.stanford.edu/cap-api/api/cap/v1/orgs/{org_code}'
-        response = self._auth.make_request('get', url).json()
-        if 'alias' in response:
-            return response['alias']
-
-
-class CAPProfile():
-    """
-    A class represening a profile returned from the Stanford CAP API.
-    """
-    def __init__(self, profile, cap_client=None):
         """
-        The constructor for the CAPProfile class.
+        Resolve an organization code to its human-readable alias.
 
         Parameters
         ----------
-        profile : dict
-            A dict object returned from a CAPClient.
-        cap_client : CAPClient
-            A valid CAPClient object.
+        org_code : string
+            The organization code to resolve (e.g., 'AABB').
+
+        Returns
+        -------
+        string or None
+            The organization alias if found, otherwise None.
         """
-        self.profile = profile
-        if not isinstance(cap_client, CAPClient):
-            cap_client = CAPClient()
-
-        cap_affiliation_dict = self.profile['affiliations']
-        # Collect all true affiliations as a list
-        true_affiliations = [
-            (k.lower()[3:] if k.startswith('cap') else k.lower())
-            for k, v in cap_affiliation_dict.items() if v is True
-        ]
-        affiliation_out = true_affiliations  # Now returns a list
-        
-        position_out = 'NULL'
-        if 'contacts' in self.profile:
-            cap_contact_dict = self.profile['contacts'][0]
-            position_out = str(cap_contact_dict.get('position'))
-
-        if 'advisees' in self.profile.keys():
-            for title in self.profile['titles']:
-                if title['appointmentType'] == 'pr':
-                    org_code = title['organization']['orgCode']
-                    organization_out = cap_client.get_org_from_code(org_code)
-        else:
-            for org in self.profile['organizations']:
-                if org['type'] == 'affiliation':
-                    org_code = org['organization']['orgCode']
-                    if org_code == 'NULL':
-                        continue
-                    organization_out = cap_client.get_org_from_code(org_code)
-                    if not organization_out:
-                        organization_out = org_code
-
-        self.affiliation = affiliation_out
-        self.position = position_out
-        self.organization = organization_out
+        url = f'https://cap.stanford.edu/cap-api/api/cap/v1/orgs/{org_code}'
+        response = self._auth.make_request('get', url).json()
+        if 'alias' in response:
+            return response['alias']
+        return None
