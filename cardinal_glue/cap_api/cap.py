@@ -69,3 +69,63 @@ class CAPClient():
         if 'alias' in response:
             return response['alias']
         return None
+
+    def _extract_profile_photo_url(self, profile, rendition='350x350'):
+        """
+        Safely extract the photo URL of a given rendition from a CAP profile dictionary.
+
+        Parameters
+        ----------
+        profile : dict
+            The CAP profile dictionary.
+        rendition : string
+            The desired rendition (e.g. '350x350', 'square').
+
+        Returns
+        -------
+        string or None
+            The photo URL if found, otherwise None.
+        """
+        if not profile:
+            return None
+        return profile.get('profilePhotos', {}).get(rendition, {}).get('url')
+
+    def _get_profile_photo_by_url(self, url, placeholder=True):
+        """
+        Fetch image data from an existing CAP photo URL.
+
+        Parameters
+        ----------
+        url : string
+            The full CAP photo URL.
+        placeholder : bool
+            Whether to return a placeholder if the photo doesn't exist.
+        """
+        return self._auth.make_request('get', url, params={'placeHolderImage': str(placeholder).lower()})
+
+    def get_profile_photo(self, uid=None, profile=None, rendition='350x350', placeholder=True):
+        """
+        Convenience method to fetch a user's profile photo.
+
+        Parameters
+        ----------
+        uid : string, optional
+            The SUNet ID of the user.
+        profile : dict, optional
+            A pre-fetched CAP profile dictionary.
+        rendition : string
+            The desired rendition (e.g. '350x350', 'square').
+        placeholder : bool
+            Whether to return a placeholder if the photo doesn't exist.
+        """
+        if not profile and uid:
+            profile = self.get_profile_from_uid(uid)
+            
+        if not profile:
+            return None
+            
+        url = self._extract_profile_photo_url(profile, rendition=rendition)
+        if not url:
+            return None
+            
+        return self._get_profile_photo_by_url(url, placeholder=placeholder)
