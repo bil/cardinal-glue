@@ -101,7 +101,7 @@ class CAPClient():
         placeholder : bool
             Whether to return a placeholder if the photo doesn't exist.
         """
-        return self._auth.make_request('get', url, params={'placeHolderImage': str(placeholder).lower()})
+        return self._auth.make_request('get', url)
 
     def get_profile_photo(self, uid=None, profile=None, rendition='350x350', placeholder=True):
         """
