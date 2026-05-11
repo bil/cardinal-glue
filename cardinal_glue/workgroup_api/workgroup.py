@@ -231,7 +231,7 @@ class Workgroup():
     """
     A class representing a Stanford workgroup.
     """
-    def __init__(self, stem, workgroup, auth=None, privgroup=False):
+    def __init__(self, stem, workgroup, auth=None, privgroup=False, use_uat=None):
         """
         The constructor for the Workgroup class.
 
@@ -243,6 +243,8 @@ class Workgroup():
             The workgroup name of the workgroup you want to query.
         auth : WorkgroupAuth
             The WorkgroupAuth object needed to query the Stanford Workgroup API.
+        use_uat : bool
+            Whether to use the UAT server. If None, checks the WORKGROUP_UAT environment variable.
         """
         self._members = None
         self._admins = None
@@ -264,9 +266,24 @@ class Workgroup():
 
         if not self._auth:
             try:
-                self._auth = WorkgroupAuth()
+                self._auth = WorkgroupAuth(use_uat=use_uat)
             except InvalidAuthInfo:
                 raise CannotInstantiateServiceObject()
+
+        # Use base_url from auth object if it exists (WorkgroupAuth has it)
+        if hasattr(self._auth, '_base_url'):
+            self._base_url = self._auth._base_url
+        else:
+            # Fallback logic if a custom auth object is passed that doesn't have _base_url
+            if use_uat is True:
+                self._base_url = "https://workgroupsvc-uat.stanford.edu/workgroups/2.0"
+            elif use_uat is False:
+                self._base_url = "https://workgroupsvc.stanford.edu/workgroups/2.0"
+            else:
+                if os.environ.get('WORKGROUP_UAT', 'false').lower() == 'true':
+                    self._base_url = "https://workgroupsvc-uat.stanford.edu/workgroups/2.0"
+                else:
+                    self._base_url = "https://workgroupsvc.stanford.edu/workgroups/2.0"
 
     @property
     def members(self):
