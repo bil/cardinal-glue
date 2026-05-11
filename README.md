@@ -205,6 +205,64 @@ print(profile['contacts'])       # List of contact info dicts
 org_name = client.get_org_from_code("AABB")  # e.g., "School of Medicine"
 ```
 
+### Canvas LMS API
+
+Export user and course data from Canvas.
+
+#### Authentication
+
+> **Note:** `CanvasClient` automatically handles authentication when instantiated. You only need to use `CanvasAuth` directly if you want to pass a custom auth object.
+
+```python
+from cardinal_glue.canvas_api.canvasauth import CanvasAuth
+
+auth = CanvasAuth()  # Only needed for custom auth configuration
+client = CanvasClient(auth=auth)
+```
+
+**Credential File:** `~/.config/cardinal-glue/canvas.json`
+
+**Environment Variables:**
+
+| Variable | Description |
+|----------|-------------|
+| `CANVAS_ACCESS_TOKEN` | Your Canvas static access token |
+| `CANVAS_BASE_URL` | Base URL (defaults to `https://canvas.stanford.edu`) |
+
+**JSON Structure (canvas.json):**
+```json
+{
+    "base_url": "https://canvas.stanford.edu",
+    "api_token": "YOUR_STATIC_TOKEN"
+}
+```
+
+#### Getting Credentials
+
+to get credentials for the canvas api, it's just self-service through your profile: log in to canvas and go to `account` > `settings` > `approved integrations` > `+ new access token`.
+
+#### CanvasClient
+
+```python
+from cardinal_glue.canvas_api.canvas import CanvasClient
+
+# Initialize client
+client = CanvasClient()
+
+# List courses you have access to
+courses = client.get_courses()
+for course in courses:
+    print(f"{course['id']}: {course['name']}")
+
+# Get a single user
+user = client.get_user("sis_user_id:jsmith")
+print(user['name'])
+
+# Get all users in a course (automatically handles pagination)
+users = client.get_users_in_course("12345")
+print(f"Found {len(users)} users")
+```
+
 ---
 
 ### Firestore
@@ -287,7 +345,6 @@ remove_from_service(
 
 ## Planned Functionality
 
-- Integration with the Canvas API
 - File management through `s3fs` and `sshfs`
 
 ---
