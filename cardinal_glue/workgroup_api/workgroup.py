@@ -40,7 +40,7 @@ class WorkgroupManager():
     A class allowing users to manage Stanford workgroups.
     """
 
-    def __init__(self, stem, auth=None):
+    def __init__(self, stem, auth=None, use_uat=None):
         """
         The constructor for the WorkgroupManager class.
 
@@ -50,15 +50,31 @@ class WorkgroupManager():
             The stem of the workgroups you want to manage.
         auth : WorkgroupAuth
             The WorkgroupAuth object needed to query the Stanford Workgroup API.
+        use_uat : bool
+            Whether to use the UAT server. If None, checks the WORKGROUP_UAT environment variable.
         """
         self._auth = auth
         self.stem = stem
         if not self._auth:
             try:
-                self._auth = WorkgroupAuth()
+                self._auth = WorkgroupAuth(use_uat=use_uat)
             except InvalidAuthInfo:
                 raise CannotInstantiateServiceObject()
-        # self.workgroup_list = self.populate_workgroup_list(stem)
+        
+        # Use base_url from auth object if it exists (WorkgroupAuth has it)
+        if hasattr(self._auth, '_base_url'):
+            self._base_url = self._auth._base_url
+        else:
+            # Fallback logic if a custom auth object is passed that doesn't have _base_url
+            if use_uat is True:
+                self._base_url = "https://workgroupsvc-uat.stanford.edu/workgroups/2.0"
+            elif use_uat is False:
+                self._base_url = "https://workgroupsvc.stanford.edu/workgroups/2.0"
+            else:
+                if os.environ.get('WORKGROUP_UAT', 'false').lower() == 'true':
+                    self._base_url = "https://workgroupsvc-uat.stanford.edu/workgroups/2.0"
+                else:
+                    self._base_url = "https://workgroupsvc.stanford.edu/workgroups/2.0"
 
     def populate_workgroup_list(self):
         """
@@ -74,7 +90,7 @@ class WorkgroupManager():
         workgroup_list : list
             A list of workgroup names.
         """
-        url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/search/{self.stem}*'
+        url = f'{self._base_url}/search/{self.stem}*'
         response = self._auth.make_request('get', url)
         workgroup_list = []
         for item in response.json()['results']:
@@ -93,7 +109,7 @@ class WorkgroupManager():
             'visibility':visibility,         # PRIVATE = membership can only be seen by admins
             'privgroup':privgroup             # TRUE = default; unused?
         }
-        url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{workgroup_name}'
+        url = f'{self._base_url}/{workgroup_name}'
         response = self._auth.make_request('post', url=url, params=data)
         if response.status_code == 201:
             logger.info(f'Workgroup {workgroup_name} created successfully.')
@@ -123,7 +139,7 @@ class WorkgroupManager():
         """
         name = name.lower()
         workgroup_name = f'{self.stem}:{name}'
-        url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{workgroup_name}/links'
+        url = f'{self._base_url}/{workgroup_name}/links'
         data = {'link': 'GOOGLE'}
         
         try:
@@ -149,7 +165,7 @@ class WorkgroupManager():
         """
         name = name.lower()
         workgroup_name = f'{self.stem}:{name}'
-        url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{workgroup_name}/links'
+        url = f'{self._base_url}/{workgroup_name}/links'
         data = {'link': 'GOOGLE'}
         
         try:
@@ -189,7 +205,7 @@ class WorkgroupManager():
                 )
 
         workgroup_name = f'{self.stem}:{name}'
-        url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{workgroup_name}'
+        url = f'{self._base_url}/{workgroup_name}'
         response = self._auth.make_request('delete', url=url)
         if response.status_code == 200:
             logger.info(f'Workgroup {workgroup_name} deleted successfully.')
@@ -310,7 +326,7 @@ class Workgroup():
         """
         Populate the parameters of a workgroup.
         """
-        url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{self.stem}:{self.name}'
+        url = f'{self._base_url}/{self.stem}:{self.name}'
         response = self._auth.make_request('get', url)
         if response.status_code == 200:
             self._member_details = response.json().get('members', [])
@@ -337,7 +353,7 @@ class Workgroup():
         """
         Populate the privgroup values of a workgroup.
         """
-        url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{self.stem}:{self.name}/privgroup'
+        url = f'{self._base_url}/{self.stem}:{self.name}/privgroup'
         response = self._auth.make_request('get', url)
         if response.status_code == 200:
             self._privgroup_members = response.json().get('members', [])
@@ -375,7 +391,7 @@ class Workgroup():
         if member_type not in ['USER', 'WORKGROUP']:
             raise ValueError("member_type must be either 'USER' or 'WORKGROUP'")
 
-        url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{self.stem}:{self.name}/members/'
+        url = f'{self._base_url}/{self.stem}:{self.name}/members/'
         if (type(member_list) is not list):
             member_list = [member_list]
         
@@ -431,7 +447,7 @@ class Workgroup():
         if member_type not in ['USER', 'WORKGROUP']:
             raise ValueError("member_type must be either 'USER' or 'WORKGROUP'")
 
-        url = f'https://workgroupsvc.stanford.edu/workgroups/2.0/{self.stem}:{self.name}/members/'
+        url = f'{self._base_url}/{self.stem}:{self.name}/members/'
         if (type(member_list) is not list):
             member_list = [member_list]
 

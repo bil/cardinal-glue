@@ -30,7 +30,7 @@ class WorkgroupAuth(Auth):
     __WORKGROUP_AUTH_CERT_NAME = 'stanford_workgroup.cert'
     __WORKGROUP_AUTH_KEY_NAME = 'stanford_workgroup.key'
 
-    def __init__(self, creds=None, auto_auth=True):
+    def __init__(self, creds=None, auto_auth=True, use_uat=None):
         """
         The constructor for the WorkgroupAuth class.
 
@@ -40,6 +40,8 @@ class WorkgroupAuth(Auth):
             Local paths to credential files.    
         auto_auth : bool
             User choice as whether to automatically attempt authentication with the Stanford Workgroup API while instantiating the object.
+        use_uat : bool
+            Whether to use the UAT server. If None, checks the WORKGROUP_UAT environment variable.
         """
         super().__init__()
         if creds:
@@ -50,6 +52,17 @@ class WorkgroupAuth(Auth):
         self._credentials = creds
         self._auth_method = None
         self.__valid = False
+
+        if use_uat is True:
+            self._base_url = "https://workgroupsvc-uat.stanford.edu/workgroups/2.0"
+        elif use_uat is False:
+            self._base_url = "https://workgroupsvc.stanford.edu/workgroups/2.0"
+        else:
+            if os.environ.get('WORKGROUP_UAT', 'false').lower() == 'true':
+                self._base_url = "https://workgroupsvc-uat.stanford.edu/workgroups/2.0"
+            else:
+                self._base_url = "https://workgroupsvc.stanford.edu/workgroups/2.0"
+
         if auto_auth:
             self.authenticate()
 
@@ -82,7 +95,7 @@ class WorkgroupAuth(Auth):
         if self._auth_method == 'file':
             if not (os.path.exists(self._credentials[0]) and os.path.exists(self._credentials[1])):
                 raise InvalidAuthInfo('Please ensure that cert and key file paths are valid.')
-        url=f'https://workgroupsvc.stanford.edu/workgroups/2.0/search/mockurl'
+        url=f'{self._base_url}/search/mockurl'
         response = self.make_request('get', url)
         if response.status_code == 200:
             self.__valid = True
