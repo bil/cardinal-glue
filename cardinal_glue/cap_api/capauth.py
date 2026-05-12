@@ -49,7 +49,11 @@ class CAPAuth(Auth):
                     cap_creds = json.load(f)
             else:
                 raise InvalidAuthInfo('Unable to generate credentials. Please ensure that there is valid json file containing CAP API authentication information.')
-            self._client_id, self._client_secret = cap_creds['client_id'], cap_creds['client_secret']
+            
+            self._client_id = cap_creds.get('client_id')
+            self._client_secret = cap_creds.get('client_secret')
+            if not self._client_id or not self._client_secret:
+                raise InvalidAuthInfo("CAP configuration file must include 'client_id' and 'client_secret'.")
         
     def make_request(self, method, url, **kwargs):
         """
@@ -81,8 +85,15 @@ class CAPAuth(Auth):
             If fetching the access token fails.
         """ 
         if self._auth_method == 'memory':
-            cap_creds = json.loads(os.environ.get("CAP_CLIENT"))
-            token_auth = (cap_creds['client_id'], cap_creds['client_secret'])
+            cap_client_str = os.environ.get("CAP_CLIENT")
+            if not cap_client_str:
+                raise InvalidAuthInfo("CAP_CLIENT environment variable is empty.")
+            cap_creds = json.loads(cap_client_str)
+            client_id = cap_creds.get('client_id')
+            client_secret = cap_creds.get('client_secret')
+            if not client_id or not client_secret:
+                raise InvalidAuthInfo("CAP_CLIENT environment variable must include 'client_id' and 'client_secret'.")
+            token_auth = (client_id, client_secret)
         elif self._auth_method == 'file':
             token_auth = (self._client_id, self._client_secret)
         
@@ -96,7 +107,9 @@ class CAPAuth(Auth):
             token_response = requests.post(token_url, data=token_data, auth=token_auth)
             token_response.raise_for_status()
             token_json = token_response.json()
-            access_token = token_json['access_token']
+            access_token = token_json.get('access_token')
+            if not access_token:
+                raise InvalidAuthInfo("CAP API response did not include an 'access_token'.")
             
             # Cache the token
             self._access_token = access_token

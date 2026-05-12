@@ -169,4 +169,10 @@ class GoogleAuth(Auth):
         pydata_path = os.path.join(self._CONFIG_PATH, 'pydata')
         os.makedirs(pydata_path, exist_ok=True)
         pydata_auth_path = os.path.join(pydata_path,'pydata_google_credentials.json')
-        shutil.copy(os.environ['GOOGLE_APPLICATION_CREDENTIALS'], pydata_auth_path)
+        
+        google_creds = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS')
+        if not google_creds:
+            logger.error("GOOGLE_APPLICATION_CREDENTIALS environment variable is not set.")
+            raise ValueError("GOOGLE_APPLICATION_CREDENTIALS environment variable must be set to prepare GDriveFS auth.")
+            
+        shutil.copy(google_creds, pydata_auth_path)

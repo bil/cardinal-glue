@@ -77,7 +77,10 @@ class QualtricsAuth(Auth):
             response = requests.request("POST",url=bearer_url, data=data, auth=auth)
             if response.status_code != 200:
                 raise InvalidAuthInfo("Invalid client values.")
-            self._access_token = 'Bearer ' + response.json()['access_token']
+            access_token = response.json().get('access_token')
+            if not access_token:
+                raise InvalidAuthInfo("Qualtrics API response did not include an 'access_token'.")
+            self._access_token = 'Bearer ' + access_token
             self._request_headers = {
                 'Authorization': self._access_token 
                 }
@@ -85,9 +88,13 @@ class QualtricsAuth(Auth):
         self._request_headers['Content-Type'] = 'application/json'
         directory_url = f'https://{self._data_center}.qualtrics.com/API/v3/directories'
         response = requests.request("GET", url=directory_url, headers=self._request_headers)
-        elements = response.json()['result']['elements']
+        elements = response.json().get('result', {}).get('elements', [])
         available_directories = []
         for directory in elements:
-            available_directories.append(directory['directoryId'])
+            dir_id = directory.get('directoryId')
+            if dir_id:
+                available_directories.append(dir_id)
+            else:
+                logger.warning("Directory entry found but 'directoryId' is missing.")
         self.available_directories = available_directories
 

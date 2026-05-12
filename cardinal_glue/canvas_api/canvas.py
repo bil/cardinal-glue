@@ -57,7 +57,10 @@ class CanvasClient():
         courses.extend(response.json())
 
         while 'next' in response.links:
-            next_url = response.links['next']['url']
+            next_url = response.links.get('next', {}).get('url')
+            if not next_url:
+                logger.warning("Pagination link 'next' found but 'url' is missing.")
+                break
             response = auth.make_request('get', next_url)
             response.raise_for_status()
             courses.extend(response.json())
@@ -114,7 +117,10 @@ class CanvasClient():
 
         # Handle Pagination via Link header
         while 'next' in response.links:
-            next_url = response.links['next']['url']
+            next_url = response.links.get('next', {}).get('url')
+            if not next_url:
+                logger.warning("Pagination link 'next' found but 'url' is missing.")
+                break
             response = auth.make_request('get', next_url)
             response.raise_for_status()
             users.extend(response.json())

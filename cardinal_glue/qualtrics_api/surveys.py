@@ -65,9 +65,13 @@ class Survey():
 
         get_response = requests.request("GET", url_get, headers=headers)
         if get_response.status_code == 200:
-            question_data = get_response.json()['result']
+            question_data = get_response.json().get('result')
+            if not question_data:
+                logger.error(f"Qualtrics API response missing 'result' for question {question_ID}")
+                raise QualtricsAPIError(f"Qualtrics API response missing 'result' for question {question_ID}")
+            
             if not question_ID:
-                question_data = question_data['elements']
+                question_data = question_data.get('elements', [])
                 logger.info(f'All questions successfully retrieved.')  
             else:
                 logger.info(f'Question {question_ID} successfully retrieved.')    

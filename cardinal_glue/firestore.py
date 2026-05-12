@@ -28,7 +28,9 @@ class FirestoreGenerator(Auth):
             if os.path.exists(file_path):
                 with open(file_path) as f:
                     firestore_db_dict = json.load(f)
-                    self.database_id = firestore_db_dict['DATABASE_ID']
+                    self.database_id = firestore_db_dict.get('DATABASE_ID')
+                    if not self.database_id:
+                        raise InvalidAuthInfo(f"Firestore configuration file {file_path} must include 'DATABASE_ID'.")
             else:
                  raise InvalidAuthInfo("Please provide a value for 'database_id' or a valid JSON file with a 'DATABASE_ID' field.")
         else:
@@ -41,7 +43,7 @@ class FirestoreGenerator(Auth):
     def authenticate(self):
         if os.getenv('K_REVISION'):
             self.database = firestore_v1.Client(database=self.database_id)
-        elif os.getenv('COLAB_RELEASE_TAG') and os.environ['GOOGLE_CLOUD_PROJECT']:
+        elif os.getenv('COLAB_RELEASE_TAG') and os.environ.get('GOOGLE_CLOUD_PROJECT'):
             gauth = GoogleAuth()
             self.database = firestore_v1.Client(database=self.database_id, credentials=gauth.credentials)
         else:

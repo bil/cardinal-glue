@@ -42,8 +42,12 @@ class CanvasAuth(Auth):
         """
         if "CANVAS_ACCESS_TOKEN" in os.environ:
             self._auth_method = 'memory'
-            if "CANVAS_BASE_URL" in os.environ:
-                self._base_url = os.environ.get("CANVAS_BASE_URL").rstrip('/')
+            base_url = os.environ.get("CANVAS_BASE_URL")
+            if base_url:
+                self._base_url = base_url.rstrip('/')
+                logger.info(f"Canvas base URL set from environment variable: {self._base_url}")
+            else:
+                logger.info(f"CANVAS_BASE_URL environment variable not found. Using default: {self._base_url}")
         else:
             file_path = os.path.join(self._AUTH_PATH, self.__CANVAS_AUTH_JSON_NAME)
             if os.path.exists(file_path):
@@ -58,8 +62,12 @@ class CanvasAuth(Auth):
                 if not self._api_token:
                     raise InvalidAuthInfo("Canvas configuration file must include 'api_token'.")
                 
-                if 'base_url' in config:
-                    self._base_url = config['base_url'].rstrip('/')
+                base_url = config.get('base_url')
+                if base_url:
+                    self._base_url = base_url.rstrip('/')
+                    logger.info(f"Canvas base URL set from config file: {self._base_url}")
+                else:
+                    logger.info(f"Canvas 'base_url' not found in config file. Using default: {self._base_url}")
             else:
                 # We don't raise here to allow lazy instantiation without environment/files present initially
                 # But make_request will fail if _auth_method is None

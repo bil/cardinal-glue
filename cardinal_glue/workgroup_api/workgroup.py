@@ -93,8 +93,11 @@ class WorkgroupManager():
         url = f'{self._base_url}/search/{self.stem}*'
         response = self._auth.make_request('get', url)
         workgroup_list = []
-        for item in response.json()['results']:
-            temp = item['name']
+        for item in response.json().get('results', []):
+            temp = item.get('name')
+            if not temp:
+                logger.warning("Workgroup search item found but 'name' is missing.")
+                continue
             temp = str.split(temp, ':')[1]
             workgroup_list.append(temp)
         self.workgroup_list = workgroup_list
@@ -348,7 +351,7 @@ class Workgroup():
         if response.status_code == 200:
             self._member_details = response.json().get('members', [])
             self._admins = response.json().get('administrators', [])
-            self._members = [i['id'] for i in self._member_details]
+            self._members = [i.get('id') for i in self._member_details if i.get('id')]
             self._description = response.json().get('description')
             self._filter = response.json().get('filter')
             self._visibility = response.json().get('visibility')
