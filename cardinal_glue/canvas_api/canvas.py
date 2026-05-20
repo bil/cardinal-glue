@@ -67,6 +67,28 @@ class CanvasClient():
 
         return courses
 
+    def get_course(self, course_id, **params):
+        """
+        Fetch a single course's information from Canvas.
+
+        Parameters
+        ----------
+        course_id : string or int
+            The Canvas course ID.
+        **params : dict
+            Additional query parameters.
+
+        Returns
+        -------
+        dict
+            The course object from Canvas.
+        """
+        url = f"/api/v1/courses/{course_id}"
+        auth = self._get_auth()
+        response = auth.make_request('get', url, params=params)
+        response.raise_for_status()
+        return response.json()
+
     def get_user(self, user_id):
         """
         Fetch a single user's information from Canvas.
