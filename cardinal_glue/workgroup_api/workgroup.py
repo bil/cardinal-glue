@@ -55,6 +55,7 @@ class WorkgroupManager():
         """
         self._auth = auth
         self.stem = stem
+        self.workgroup_list = None
         if not self._auth:
             try:
                 self._auth = WorkgroupAuth(use_uat=use_uat)
