@@ -154,10 +154,10 @@ class WorkgroupManager():
                 response = self._auth.make_request('put', url=url, params=data)
                 if response.status_code in (200, 201):
                     logger.info(f'Successfully linked Google Group to {workgroup_name}.')
-                    return
+                    return True
                 elif response.status_code == 409:
                     logger.info(f'Google Group linkage already exists for {workgroup_name}.')
-                    return
+                    return True
                 elif response.status_code == 404:
                     if i < retries - 1:
                         logger.info(f'Workgroup {workgroup_name} not ready for linking, retrying in {wait_time} seconds...')
@@ -166,13 +166,13 @@ class WorkgroupManager():
                         continue
                     else:
                         logger.warning(f'Failed to link Google Group for {workgroup_name} after {retries} attempts. Status: {response.status_code}')
-                        return
+                        return False
                 else:
                     logger.warning(f'Failed to link Google Group for {workgroup_name}. Status: {response.status_code}')
-                    return
+                    return False
             except Exception as e:
                 logger.error(f"Exception during Google Group link creation: {e}")
-                return
+                return False
 
     def _remove_google_link(self, name):
         """
@@ -276,7 +276,8 @@ class WorkgroupManager():
         try:
             old_wg.populate_workgroup()
         except WorkgroupNotFound:
-            raise WorkgroupNotFound(f"Original workgroup '{self.stem}:{name}' not found.")
+            logger.error(f"Original workgroup '{self.stem}:{name}' not found.")
+            return {'statusCode': 404, 'message': f"Original workgroup '{self.stem}:{name}' not found."}
             
         # 2. Check for Google integration
         has_google = False
@@ -285,90 +286,102 @@ class WorkgroupManager():
                 if 'GOOGLE' in integration:
                     has_google = True
                     break
-                    
-        # 3. Create new workgroup with original settings
-        new_mgr = WorkgroupManager(new_stem, auth=self._auth) if new_stem != self.stem else self
         
-        description = old_wg.description or ''
-        filter_in = old_wg._filter or 'NONE'
-        reusable = str(old_wg._reusable).upper() if old_wg._reusable is not None else 'TRUE'
-        visibility = old_wg._visibility or 'PRIVATE'
-        privgroup = str(old_wg._privgroup).upper() if old_wg._privgroup is not None else 'TRUE'
-        
+        copy_successful = True
         try:
-            # Create without adding google link immediately to avoid order of operations failure
-            new_mgr.create_workgroup(
-                name=new_name,
-                description=description,
-                filter_in=filter_in,
-                reusable=reusable,
-                visibility=visibility,
-                privgroup=privgroup,
-                add_google_link=False
-            )
-        except WorkgroupAlreadyExists:
-            if not overwrite:
-                raise
-            logger.info(f"Workgroup '{new_stem}:{new_name}' already exists. Overwrite=True, syncing contents.")
+            # 3. Create new workgroup with original settings
+            new_mgr = WorkgroupManager(new_stem, auth=self._auth) if new_stem != self.stem else self
             
-        # 4. Wait for propagation (Exponential Backoff)
-        new_wg = Workgroup(new_stem, new_name, auth=self._auth)
-        retries = 5
-        wait_time = 2
-        for i in range(retries):
+            description = old_wg.description or ''
+            filter_in = old_wg._filter or 'NONE'
+            reusable = str(old_wg._reusable).upper() if old_wg._reusable is not None else 'TRUE'
+            visibility = old_wg._visibility or 'PRIVATE'
+            privgroup = str(old_wg._privgroup).upper() if old_wg._privgroup is not None else 'TRUE'
+            
             try:
-                new_wg.populate_workgroup()
-                break
-            except WorkgroupNotFound:
-                if i == retries - 1:
+                # Create without adding google link immediately to avoid order of operations failure
+                new_mgr.create_workgroup(
+                    name=new_name,
+                    description=description,
+                    filter_in=filter_in,
+                    reusable=reusable,
+                    visibility=visibility,
+                    privgroup=privgroup,
+                    add_google_link=False
+                )
+            except WorkgroupAlreadyExists:
+                if not overwrite:
                     raise
-                logger.info(f"Workgroup '{new_stem}:{new_name}' not yet available, retrying in {wait_time} seconds...")
-                time.sleep(wait_time)
-                wait_time *= 2
-
-        # 5. Copy admins
-        # Group admins by type
-        admins_by_type = {}
-        for admin in old_wg._admins:
-            a_type = admin.get('type')
-            a_id = admin.get('id')
-            if a_type and a_id:
-                admins_by_type.setdefault(a_type, []).append(a_id)
+                logger.info(f"Workgroup '{new_stem}:{new_name}' already exists. Overwrite=True, syncing contents.")
                 
-        for a_type, a_list in admins_by_type.items():
-            api_type = 'USER' if a_type == 'PERSON' else a_type
-            if api_type in ['USER', 'WORKGROUP', 'CERTIFICATE']:
-                new_wg.add_admins(a_list, admin_type=api_type, filter_admins=True, ignore_missing=True)
+            # 4. Wait for propagation (Exponential Backoff)
+            new_wg = Workgroup(new_stem, new_name, auth=self._auth)
+            retries = 5
+            wait_time = 2
+            for i in range(retries):
+                try:
+                    new_wg.populate_workgroup()
+                    break
+                except WorkgroupNotFound:
+                    if i == retries - 1:
+                        raise
+                    logger.info(f"Workgroup '{new_stem}:{new_name}' not yet available, retrying in {wait_time} seconds...")
+                    time.sleep(wait_time)
+                    wait_time *= 2
 
-        # 6. Copy members
-        # Group members by type
-        members_by_type = {}
-        for member in old_wg._member_details:
-            m_type = member.get('type')
-            m_id = member.get('id')
-            if m_type and m_id:
-                members_by_type.setdefault(m_type, []).append(m_id)
-        
-        for m_type, m_list in members_by_type.items():
-            # Workgroup API uses 'PERSON' in GET but 'USER' in PUT/POST for type
-            api_type = 'USER' if m_type == 'PERSON' else m_type
-            if api_type in ['USER', 'WORKGROUP', 'CERTIFICATE']:
-                new_wg.add_members(m_list, member_type=api_type, filter_members=True, ignore_missing=True)
-                
-        # 7. Add Google Link if needed
-        if has_google:
-            already_has_google = False
-            if new_wg._integrations:
-                for integration in new_wg._integrations:
-                    if 'GOOGLE' in integration:
-                        already_has_google = True
-                        break
-            if not already_has_google:
-                new_mgr._add_google_link(new_name)
+            # 5. Copy admins
+            # Group admins by type
+            admins_by_type = {}
+            for admin in old_wg._admins:
+                a_type = admin.get('type')
+                a_id = admin.get('id')
+                if a_type and a_id:
+                    admins_by_type.setdefault(a_type, []).append(a_id)
+                    
+            for a_type, a_list in admins_by_type.items():
+                api_type = 'USER' if a_type == 'PERSON' else a_type
+                if api_type in ['USER', 'WORKGROUP', 'CERTIFICATE']:
+                    new_wg.add_admins(a_list, admin_type=api_type, filter_admins=True, ignore_missing=True)
 
-        # 8. Optionally delete original
+            # 6. Copy members
+            # Group members by type
+            members_by_type = {}
+            for member in old_wg._member_details:
+                m_type = member.get('type')
+                m_id = member.get('id')
+                if m_type and m_id:
+                    members_by_type.setdefault(m_type, []).append(m_id)
+            
+            for m_type, m_list in members_by_type.items():
+                # Workgroup API uses 'PERSON' in GET but 'USER' in PUT/POST for type
+                api_type = 'USER' if m_type == 'PERSON' else m_type
+                if api_type in ['USER', 'WORKGROUP', 'CERTIFICATE']:
+                    new_wg.add_members(m_list, member_type=api_type, filter_members=True, ignore_missing=True)
+                    
+            # 7. Add Google Link if needed
+            if has_google:
+                already_has_google = False
+                if new_wg._integrations:
+                    for integration in new_wg._integrations:
+                        if 'GOOGLE' in integration:
+                            already_has_google = True
+                            break
+                if not already_has_google:
+                    success = new_mgr._add_google_link(new_name)
+                    if not success:
+                        copy_successful = False
+                        logger.error(f"Failed to add Google linkage to {new_stem}:{new_name}. Original workgroup will not be deleted.")
+        except Exception as e:
+            logger.error(f"Error copying workgroup {self.stem}:{name} to {new_stem}:{new_name}: {e}")
+            return {'statusCode': 500, 'message': f'Error during copy: {e}'}
+
+        # 8. Optionally delete original (ONLY if replication was fully successful)
         if remove_original:
-            self.delete_workgroup(name, remove_google_link=has_google)
+            if copy_successful:
+                self.delete_workgroup(name, remove_google_link=has_google)
+            else:
+                logger.warning(f"Copy of {self.stem}:{name} was incomplete or had errors. Skipping deletion of original.")
+                return {'statusCode': 207, 'message': f'Workgroup {self.stem}:{name} copied with warnings, original preserved.'}
             
         return {'statusCode': 200, 'message': f'Workgroup {self.stem}:{name} successfully copied to {new_stem}:{new_name}'}
 
