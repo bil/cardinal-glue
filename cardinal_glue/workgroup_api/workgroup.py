@@ -146,17 +146,33 @@ class WorkgroupManager():
         workgroup_name = f'{self.stem}:{name}'
         url = f'{self._base_url}/{workgroup_name}/links'
         data = {'link': 'GOOGLE'}
-        
-        try:
-            response = self._auth.make_request('put', url=url, params=data)
-            if response.status_code == 201:
-                logger.info(f'Successfully linked Google Group to {workgroup_name}.')
-            elif response.status_code == 409:
-                logger.info(f'Google Group linkage already exists for {workgroup_name}.')
-            else:
-                logger.warning(f'Failed to link Google Group for {workgroup_name}. Status: {response.status_code}')
-        except Exception as e:
-            logger.error(f"Exception during Google Group link creation: {e}")
+
+        retries = 5
+        wait_time = 2
+        for i in range(retries):
+            try:
+                response = self._auth.make_request('put', url=url, params=data)
+                if response.status_code in (200, 201):
+                    logger.info(f'Successfully linked Google Group to {workgroup_name}.')
+                    return
+                elif response.status_code == 409:
+                    logger.info(f'Google Group linkage already exists for {workgroup_name}.')
+                    return
+                elif response.status_code == 404:
+                    if i < retries - 1:
+                        logger.info(f'Workgroup {workgroup_name} not ready for linking, retrying in {wait_time} seconds...')
+                        time.sleep(wait_time)
+                        wait_time *= 2
+                        continue
+                    else:
+                        logger.warning(f'Failed to link Google Group for {workgroup_name} after {retries} attempts. Status: {response.status_code}')
+                        return
+                else:
+                    logger.warning(f'Failed to link Google Group for {workgroup_name}. Status: {response.status_code}')
+                    return
+            except Exception as e:
+                logger.error(f"Exception during Google Group link creation: {e}")
+                return
 
     def _remove_google_link(self, name):
         """
