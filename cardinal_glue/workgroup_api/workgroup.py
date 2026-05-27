@@ -229,6 +229,98 @@ class WorkgroupManager():
         ret['statusCode'] = response.status_code
         return ret
 
+    def copy_workgroup(self, name, new_stem=None, new_name=None, remove_original=False):
+        """
+        Copy a workgroup. Optionally change the stem or name during the copy.
+        
+        Parameters
+        __________
+        name : string
+            The name of the workgroup to copy.
+        new_stem : string, optional
+            The stem to place the copied workgroup under. Defaults to the current stem.
+        new_name : string, optional
+            The new name for the copied workgroup. Defaults to the original name.
+        remove_original : bool
+            Whether to delete the original workgroup after successfully copying.
+        """
+        name = name.lower()
+        new_stem = new_stem if new_stem else self.stem
+        new_name = (new_name.lower() if new_name else name)
+        
+        if new_stem == self.stem and new_name == name:
+            raise ValueError("Must specify a different stem or a different name to copy.")
+            
+        # 1. Fetch original workgroup details
+        old_wg = Workgroup(self.stem, name, auth=self._auth)
+        try:
+            old_wg.populate_workgroup()
+        except WorkgroupNotFound:
+            raise WorkgroupNotFound(f"Original workgroup '{self.stem}:{name}' not found.")
+            
+        # 2. Check for Google integration
+        has_google = False
+        if old_wg._integrations:
+            for integration in old_wg._integrations:
+                if 'GOOGLE' in integration:
+                    has_google = True
+                    break
+                    
+        # 3. Create new workgroup with original settings
+        new_mgr = WorkgroupManager(new_stem, auth=self._auth) if new_stem != self.stem else self
+        
+        description = old_wg.description or ''
+        filter_in = old_wg._filter or 'NONE'
+        reusable = str(old_wg._reusable).upper() if old_wg._reusable is not None else 'TRUE'
+        visibility = old_wg._visibility or 'PRIVATE'
+        privgroup = str(old_wg._privgroup).upper() if old_wg._privgroup is not None else 'TRUE'
+        
+        new_mgr.create_workgroup(
+            name=new_name,
+            description=description,
+            filter_in=filter_in,
+            reusable=reusable,
+            visibility=visibility,
+            privgroup=privgroup,
+            add_google_link=has_google
+        )
+        
+        # 4. Copy members and admins
+        new_wg = Workgroup(new_stem, new_name, auth=self._auth)
+        
+        # Group members by type
+        members_by_type = {}
+        for member in old_wg._member_details:
+            m_type = member.get('type')
+            m_id = member.get('id')
+            if m_type and m_id:
+                members_by_type.setdefault(m_type, []).append(m_id)
+        
+        for m_type, m_list in members_by_type.items():
+            # Workgroup API uses 'PERSON' in GET but 'USER' in PUT/POST for type
+            api_type = 'USER' if m_type == 'PERSON' else m_type
+            if api_type in ['USER', 'WORKGROUP', 'CERTIFICATE']:
+                new_wg.add_members(m_list, member_type=api_type)
+        
+        # Group admins by type
+        admins_by_type = {}
+        for admin in old_wg._admins:
+            a_type = admin.get('type')
+            a_id = admin.get('id')
+            if a_type and a_id:
+                admins_by_type.setdefault(a_type, []).append(a_id)
+                
+        for a_type, a_list in admins_by_type.items():
+            api_type = 'USER' if a_type == 'PERSON' else a_type
+            if api_type in ['USER', 'WORKGROUP', 'CERTIFICATE']:
+                new_wg.add_admins(a_list, admin_type=api_type)
+                
+        # 5. Optionally delete original
+        if remove_original:
+            self.delete_workgroup(name, remove_google_link=has_google)
+            
+        return {'statusCode': 200, 'message': f'Workgroup {self.stem}:{name} successfully copied to {new_stem}:{new_name}'}
+
 
 class Workgroup():
     """
@@ -356,6 +448,7 @@ class Workgroup():
             self._filter = response.json().get('filter')
             self._visibility = response.json().get('visibility')
             self._reusable = response.json().get('reusable')
+            self._privgroup = response.json().get('privgroup')
             self._integrations = response.json().get('integrations')
             self._populated = True
             logger.info(f'Workgroup {self.name} populated.')
@@ -408,8 +501,8 @@ class Workgroup():
             Whether to check if members exist before adding. Defaults to False (faster).
         """
         member_type = member_type.upper()
-        if member_type not in ['USER', 'WORKGROUP']:
-            raise ValueError("member_type must be either 'USER' or 'WORKGROUP'")
+        if member_type not in ['USER', 'WORKGROUP', 'CERTIFICATE']:
+            raise ValueError("member_type must be either 'USER', 'WORKGROUP', or 'CERTIFICATE'")
 
         url = f'{self._base_url}/{self.stem}:{self.name}/members/'
         if (type(member_list) is not list):
@@ -448,6 +541,62 @@ class Workgroup():
                 raise WorkgroupAPIError(f"Error adding member {member}: {response.status_code}")
         self.populate_workgroup()
 
+    def add_admins(self, admin_list, admin_type='USER', admin_stem=None, filter_admins=False):
+        """
+        Add administrators to a workgroup.
+
+        Parameters
+        __________
+        admin_list : list
+            The list of admins (UIDs, Workgroup names, or Certificate names) to add.
+        admin_type : str
+            The type of admin to add ('USER', 'WORKGROUP', or 'CERTIFICATE'). Default is 'USER'.
+        admin_stem : str
+            The stem of the workgroup admin to add. 
+            Only used if admin_type is 'WORKGROUP' and the name does not contain a colon.
+            Defaults to self.stem if not provided.
+        filter_admins : bool
+            Whether to check if admins exist before adding. Defaults to False.
+        """
+        admin_type = admin_type.upper()
+        if admin_type not in ['USER', 'WORKGROUP', 'CERTIFICATE']:
+            raise ValueError("admin_type must be either 'USER', 'WORKGROUP', or 'CERTIFICATE'")
+
+        url = f'{self._base_url}/{self.stem}:{self.name}/administrators/'
+        if (type(admin_list) is not list):
+            admin_list = [admin_list]
+        
+        # Filter existing admins locally to reduce API calls IF requested
+        if filter_admins:
+            admin_ids = [i.get('id') for i in self.admins if i.get('id')]
+            admin_list = list(set(admin_list)-set(admin_ids))
+        
+        if not admin_list:
+            if filter_admins:
+                logger.info(f'All of the provided admins were already in {self.name}')
+            return
+
+        for admin in admin_list:
+            if admin_type == 'WORKGROUP':
+                stem_to_use = admin_stem if admin_stem else self.stem
+                admin = f"{stem_to_use}:{admin}"
+
+            response = self._auth.make_request('put', f'{url}{admin}', params={'type': admin_type})
+            if response.status_code == 200:
+                logger.info(f'{admin} was added successfully as admin to Workgroup {self.name}')
+            elif response.status_code == 409:
+                logger.info(f'{admin} is already an admin of {self.name}')
+            elif response.status_code == 404:
+                logger.error(f"Workgroup '{self.name}' not found.")
+                raise WorkgroupNotFound(f"Workgroup '{self.name}' not found.")
+            elif response.status_code == 401:
+                logger.error('Permission denied adding administrator.')
+                raise WorkgroupPermissionDenied("Permission denied adding administrator.")
+            else:
+                logger.error(f'Error {response.status_code}')
+                raise WorkgroupAPIError(f"Error adding administrator {admin}: {response.status_code}")
+        self.populate_workgroup()
+
     def remove_members(self, member_list, member_type='USER', member_stem=None, filter_members=False):
         """
         Remove members from a workgroup.
@@ -464,8 +613,8 @@ class Workgroup():
             Defaults to self.stem if not provided.
         """
         member_type = member_type.upper()
-        if member_type not in ['USER', 'WORKGROUP']:
-            raise ValueError("member_type must be either 'USER' or 'WORKGROUP'")
+        if member_type not in ['USER', 'WORKGROUP', 'CERTIFICATE']:
+            raise ValueError("member_type must be either 'USER', 'WORKGROUP', or 'CERTIFICATE'")
 
         url = f'{self._base_url}/{self.stem}:{self.name}/members/'
         if (type(member_list) is not list):
