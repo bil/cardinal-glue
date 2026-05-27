@@ -104,13 +104,13 @@ class WorkgroupManager():
             workgroup_list.append(temp)
         self.workgroup_list = workgroup_list
 
-    def create_workgroup(self, name, description, filter_in='NONE', reusable='TRUE', visibility='PRIVATE', privgroup='TRUE', add_google_link=False):
+    def create_workgroup(self, name, description, filter_in='NONE', reusable='FALSE', visibility='PRIVATE', privgroup='TRUE', add_google_link=False):
         name = name.lower()
         workgroup_name = f'{self.stem}:{name}'
         data={
             'description':description,           # workgroup description
             'filter':filter_in,                # NONE = default; all Stanford affiliates allowed
-            'reusable':reusable,              # TRUE = default; can be nested under other stems
+            'reusable':reusable,              # FALSE = default; can be nested under other stems
             'visibility':visibility,         # PRIVATE = membership can only be seen by admins
             'privgroup':privgroup             # TRUE = default; unused?
         }
@@ -294,7 +294,7 @@ class WorkgroupManager():
             
             description = old_wg.description or ''
             filter_in = old_wg._filter or 'NONE'
-            reusable = str(old_wg._reusable).upper() if old_wg._reusable is not None else 'TRUE'
+            reusable = str(old_wg._reusable).upper() if old_wg._reusable is not None else 'FALSE'
             visibility = old_wg._visibility or 'PRIVATE'
             privgroup = str(old_wg._privgroup).upper() if old_wg._privgroup is not None else 'TRUE'
             
