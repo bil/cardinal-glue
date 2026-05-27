@@ -322,7 +322,7 @@ class WorkgroupManager():
         for a_type, a_list in admins_by_type.items():
             api_type = 'USER' if a_type == 'PERSON' else a_type
             if api_type in ['USER', 'WORKGROUP', 'CERTIFICATE']:
-                new_wg.add_admins(a_list, admin_type=api_type, filter_admins=True)
+                new_wg.add_admins(a_list, admin_type=api_type, filter_admins=True, ignore_missing=True)
 
         # 6. Copy members
         # Group members by type
@@ -337,7 +337,7 @@ class WorkgroupManager():
             # Workgroup API uses 'PERSON' in GET but 'USER' in PUT/POST for type
             api_type = 'USER' if m_type == 'PERSON' else m_type
             if api_type in ['USER', 'WORKGROUP', 'CERTIFICATE']:
-                new_wg.add_members(m_list, member_type=api_type, filter_members=True)
+                new_wg.add_members(m_list, member_type=api_type, filter_members=True, ignore_missing=True)
                 
         # 7. Add Google Link if needed
         if has_google:
@@ -518,7 +518,7 @@ class Workgroup():
             logger.error(f'Error {response.status_code}')
             raise WorkgroupAPIError(f"Workgroup API error: {response.status_code}")
 
-    def add_members(self, member_list, member_type='USER', member_stem=None, filter_members=False):
+    def add_members(self, member_list, member_type='USER', member_stem=None, filter_members=False, ignore_missing=False):
         """
         Add members to a workgroup.
 
@@ -534,6 +534,8 @@ class Workgroup():
             Defaults to self.stem if not provided.
         filter_members : bool
             Whether to check if members exist before adding. Defaults to False (faster).
+        ignore_missing : bool
+            Whether to ignore 404 Not Found errors for individual members (useful for migrations). Defaults to False.
         """
         member_type = member_type.upper()
         if member_type not in ['USER', 'WORKGROUP', 'CERTIFICATE']:
@@ -553,7 +555,7 @@ class Workgroup():
             return
 
         for member in member_list:
-            if member_type == 'WORKGROUP':
+            if member_type == 'WORKGROUP' and ':' not in member:
                 stem_to_use = member_stem if member_stem else self.stem
                 member = f"{stem_to_use}:{member}"
 
@@ -563,11 +565,11 @@ class Workgroup():
             elif response.status_code == 409:
                 logger.info(f'{member} is already in {self.name}')
             elif response.status_code == 404:
-                # 404 on PUT usually implies the workgroup itself is missing (or member lookup failed weirdly)
-                # But 'populate' check usually catches workgroup missing.
-                # If the TARGET (self.name) is missing:
-                logger.error(f"Workgroup '{self.name}' not found.")
-                raise WorkgroupNotFound(f"Workgroup '{self.name}' not found.")
+                if ignore_missing:
+                    logger.warning(f"Member '{member}' not found in Stanford registry. Skipping.")
+                else:
+                    logger.error(f"Workgroup '{self.name}' or Member '{member}' not found.")
+                    raise WorkgroupNotFound(f"Workgroup '{self.name}' or Member '{member}' not found.")
             elif response.status_code == 401:
                 logger.error('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
                 raise WorkgroupPermissionDenied("Permission denied adding member.")
@@ -576,7 +578,7 @@ class Workgroup():
                 raise WorkgroupAPIError(f"Error adding member {member}: {response.status_code}")
         self.populate_workgroup()
 
-    def add_admins(self, admin_list, admin_type='USER', admin_stem=None, filter_admins=False):
+    def add_admins(self, admin_list, admin_type='USER', admin_stem=None, filter_admins=False, ignore_missing=False):
         """
         Add administrators to a workgroup.
 
@@ -592,6 +594,8 @@ class Workgroup():
             Defaults to self.stem if not provided.
         filter_admins : bool
             Whether to check if admins exist before adding. Defaults to False.
+        ignore_missing : bool
+            Whether to ignore 404 Not Found errors for individual admins (useful for migrations). Defaults to False.
         """
         admin_type = admin_type.upper()
         if admin_type not in ['USER', 'WORKGROUP', 'CERTIFICATE']:
@@ -612,7 +616,7 @@ class Workgroup():
             return
 
         for admin in admin_list:
-            if admin_type == 'WORKGROUP':
+            if admin_type == 'WORKGROUP' and ':' not in admin:
                 stem_to_use = admin_stem if admin_stem else self.stem
                 admin = f"{stem_to_use}:{admin}"
 
@@ -622,8 +626,11 @@ class Workgroup():
             elif response.status_code == 409:
                 logger.info(f'{admin} is already an admin of {self.name}')
             elif response.status_code == 404:
-                logger.error(f"Workgroup '{self.name}' not found.")
-                raise WorkgroupNotFound(f"Workgroup '{self.name}' not found.")
+                if ignore_missing:
+                    logger.warning(f"Admin '{admin}' not found in Stanford registry. Skipping.")
+                else:
+                    logger.error(f"Workgroup '{self.name}' or Admin '{admin}' not found.")
+                    raise WorkgroupNotFound(f"Workgroup '{self.name}' or Admin '{admin}' not found.")
             elif response.status_code == 401:
                 logger.error('Permission denied adding administrator.')
                 raise WorkgroupPermissionDenied("Permission denied adding administrator.")
@@ -666,7 +673,7 @@ class Workgroup():
 
         status_codes = []
         for member in member_list:
-            if member_type == 'WORKGROUP':
+            if member_type == 'WORKGROUP' and ':' not in member:
                 stem_to_use = member_stem if member_stem else self.stem
                 member = f"{stem_to_use}:{member}"
 
