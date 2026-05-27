@@ -1,6 +1,7 @@
 import requests
 import os
 import logging
+import time
 from cardinal_glue.workgroup_api.workgroupauth import WorkgroupAuth
 from cardinal_glue.auth.core import InvalidAuthInfo, CannotInstantiateServiceObject
 
@@ -230,7 +231,7 @@ class WorkgroupManager():
         ret['statusCode'] = response.status_code
         return ret
 
-    def copy_workgroup(self, name, new_stem=None, new_name=None, remove_original=False):
+    def copy_workgroup(self, name, new_stem=None, new_name=None, remove_original=False, overwrite=False):
         """
         Copy a workgroup. Optionally change the stem or name during the copy.
         
@@ -244,6 +245,8 @@ class WorkgroupManager():
             The new name for the copied workgroup. Defaults to the original name.
         remove_original : bool
             Whether to delete the original workgroup after successfully copying.
+        overwrite : bool
+            If True, will sync missing members, admins, and integrations to an existing destination workgroup instead of failing.
         """
         name = name.lower()
         new_stem = new_stem if new_stem else self.stem
@@ -276,19 +279,52 @@ class WorkgroupManager():
         visibility = old_wg._visibility or 'PRIVATE'
         privgroup = str(old_wg._privgroup).upper() if old_wg._privgroup is not None else 'TRUE'
         
-        new_mgr.create_workgroup(
-            name=new_name,
-            description=description,
-            filter_in=filter_in,
-            reusable=reusable,
-            visibility=visibility,
-            privgroup=privgroup,
-            add_google_link=has_google
-        )
-        
-        # 4. Copy members and admins
+        try:
+            # Create without adding google link immediately to avoid order of operations failure
+            new_mgr.create_workgroup(
+                name=new_name,
+                description=description,
+                filter_in=filter_in,
+                reusable=reusable,
+                visibility=visibility,
+                privgroup=privgroup,
+                add_google_link=False
+            )
+        except WorkgroupAlreadyExists:
+            if not overwrite:
+                raise
+            logger.info(f"Workgroup '{new_stem}:{new_name}' already exists. Overwrite=True, syncing contents.")
+            
+        # 4. Wait for propagation (Exponential Backoff)
         new_wg = Workgroup(new_stem, new_name, auth=self._auth)
-        
+        retries = 5
+        wait_time = 2
+        for i in range(retries):
+            try:
+                new_wg.populate_workgroup()
+                break
+            except WorkgroupNotFound:
+                if i == retries - 1:
+                    raise
+                logger.info(f"Workgroup '{new_stem}:{new_name}' not yet available, retrying in {wait_time} seconds...")
+                time.sleep(wait_time)
+                wait_time *= 2
+
+        # 5. Copy admins
+        # Group admins by type
+        admins_by_type = {}
+        for admin in old_wg._admins:
+            a_type = admin.get('type')
+            a_id = admin.get('id')
+            if a_type and a_id:
+                admins_by_type.setdefault(a_type, []).append(a_id)
+                
+        for a_type, a_list in admins_by_type.items():
+            api_type = 'USER' if a_type == 'PERSON' else a_type
+            if api_type in ['USER', 'WORKGROUP', 'CERTIFICATE']:
+                new_wg.add_admins(a_list, admin_type=api_type, filter_admins=True)
+
+        # 6. Copy members
         # Group members by type
         members_by_type = {}
         for member in old_wg._member_details:
@@ -301,22 +337,20 @@ class WorkgroupManager():
             # Workgroup API uses 'PERSON' in GET but 'USER' in PUT/POST for type
             api_type = 'USER' if m_type == 'PERSON' else m_type
             if api_type in ['USER', 'WORKGROUP', 'CERTIFICATE']:
-                new_wg.add_members(m_list, member_type=api_type)
-        
-        # Group admins by type
-        admins_by_type = {}
-        for admin in old_wg._admins:
-            a_type = admin.get('type')
-            a_id = admin.get('id')
-            if a_type and a_id:
-                admins_by_type.setdefault(a_type, []).append(a_id)
+                new_wg.add_members(m_list, member_type=api_type, filter_members=True)
                 
-        for a_type, a_list in admins_by_type.items():
-            api_type = 'USER' if a_type == 'PERSON' else a_type
-            if api_type in ['USER', 'WORKGROUP', 'CERTIFICATE']:
-                new_wg.add_admins(a_list, admin_type=api_type)
-                
-        # 5. Optionally delete original
+        # 7. Add Google Link if needed
+        if has_google:
+            already_has_google = False
+            if new_wg._integrations:
+                for integration in new_wg._integrations:
+                    if 'GOOGLE' in integration:
+                        already_has_google = True
+                        break
+            if not already_has_google:
+                new_mgr._add_google_link(new_name)
+
+        # 8. Optionally delete original
         if remove_original:
             self.delete_workgroup(name, remove_google_link=has_google)
             
