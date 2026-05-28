@@ -63,6 +63,7 @@ wg = Workgroup(stem="my-stem", workgroup="my-group", auth=auth)
 | `WORKGROUP_KEY_PATH` | Path to key file |
 | `WORKGROUP_CERT` | Certificate content (for containers) |
 | `WORKGROUP_KEY` | Key content (for containers) |
+| `WORKGROUP_UAT` | Set to `'true'` to use the UAT server (`workgroupsvc-uat.stanford.edu`) |
 
 #### Workgroup
 
@@ -72,13 +73,19 @@ from cardinal_glue.workgroup_api.workgroup import Workgroup
 # Query a workgroup
 wg = Workgroup(stem="my-stem", workgroup="my-group")
 
-# Access members
+# Access members and admins
 print(wg.members)           # List of member UIDs
 print(wg.member_details)    # Detailed member info
+print(wg.admins)            # List of administrator info
 
-# Add/remove members
+# Add/remove members and admins (supports types 'USER', 'WORKGROUP', 'CERTIFICATE')
+# Note: Set ignore_missing=True during migrations to gracefully skip deleted legacy entities
 wg.add_members(["user1", "user2"])
+wg.add_admins(["admin1", "dept:admin-group"], admin_type='WORKGROUP')
 wg.remove_members(["user3"])
+
+# Programmatically tighten security properties
+wg.update_properties(reusable='FALSE', visibility='PRIVATE')
 ```
 
 #### WorkgroupManager
@@ -95,6 +102,15 @@ print(mgr.populate_workgroup_list())
 # Create/delete workgroups
 mgr.create_workgroup(name="new-group", description="My new workgroup")
 mgr.delete_workgroup(name="old-group")
+
+# Copy/Move/Sync workgroups
+mgr.copy_workgroup(
+    name="source-group", 
+    new_stem="new-stem", 
+    new_name="migrated-group",
+    overwrite=True,       # Sync to destination if it already exists
+    remove_original=True  # Move the group instead of just copying
+)
 ```
 
 ---
@@ -184,6 +200,12 @@ client = CAPClient(auth=auth)
 ```
 
 **Credential File:** `~/.config/cardinal-glue/cap.json`
+
+**Environment Variables:**
+
+| Variable | Description |
+|----------|-------------|
+| `CAP_CLIENT` | JSON string of credentials (alternative to file) |
 
 #### CAPClient
 
