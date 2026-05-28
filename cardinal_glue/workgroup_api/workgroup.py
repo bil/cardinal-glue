@@ -547,6 +547,51 @@ class Workgroup():
             logger.error(f'Error {response.status_code}')
             raise WorkgroupAPIError(f"Workgroup API error: {response.status_code}")
 
+    def update_properties(self, description=None, reusable=None, visibility=None, privgroup=None, filter_in=None):
+        """
+        Update the properties of an existing workgroup.
+
+        Parameters
+        __________
+        description : str, optional
+            A string (max 255 characters). Cannot be empty or blank.
+        reusable : str, optional
+            'TRUE' or 'FALSE'.
+        visibility : str, optional
+            'PRIVATE' or 'STANFORD'.
+        privgroup : str, optional
+            'TRUE' or 'FALSE'.
+        filter_in : str, optional
+            Accepted values: 'ACADEMIC_ADMINISTRATIVE', 'STUDENT', 'FACULTY', 'STAFF', 
+            'FACULTY_STAFF', 'FACULTY_STUDENT', 'STAFF_STUDENT', 'FACULTY_STAFF_STUDENT', or 'NONE'.
+        """
+        data = {}
+        if description is not None: data['description'] = description
+        if reusable is not None: data['reusable'] = reusable.upper()
+        if visibility is not None: data['visibility'] = visibility.upper()
+        if privgroup is not None: data['privgroup'] = privgroup.upper()
+        if filter_in is not None: data['filter'] = filter_in.upper()
+
+        if not data:
+            logger.info("No properties provided to update.")
+            return
+
+        url = f'{self._base_url}/{self.stem}:{self.name}'
+        response = self._auth.make_request('put', url=url, params=data)
+
+        if response.status_code == 200:
+            logger.info(f"Successfully updated properties for Workgroup {self.name}.")
+            self.populate_workgroup()
+        elif response.status_code == 404:
+            logger.error(f"Workgroup '{self.name}' not found.")
+            raise WorkgroupNotFound(f"Workgroup '{self.name}' not found.")
+        elif response.status_code in [401, 403]:
+            logger.error('Permission denied updating workgroup properties.')
+            raise WorkgroupPermissionDenied("Permission denied updating workgroup properties.")
+        else:
+            logger.error(f'Error {response.status_code}')
+            raise WorkgroupAPIError(f"Error updating workgroup properties: {response.status_code}")
+
     def add_members(self, member_list, member_type='USER', member_stem=None, filter_members=False, ignore_missing=False):
         """
         Add members to a workgroup.
