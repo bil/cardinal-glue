@@ -17,3 +17,6 @@ dependencies = [
         "gcsfs",
         "pandas"
 ]
+
+[tool.setuptools.packages.find]
+include = ["cardinal_glue*"]
