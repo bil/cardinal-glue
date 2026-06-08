@@ -114,4 +114,20 @@ def transform_cap_profile(uid, raw_profile, cap_client=None):
         organization = 'vice-provost-and-dean-of-research'
     affiliation = (str.split(organization, '/')[0] if organization else None)
     
+    # Apply hardcoded affiliation transformations
+    if affiliation:
+        affiliation_mapping = {
+            'school-of-medicine': 'SoM',
+            'graduate-school-of-business': 'GSB',
+            'land-buildings-and-real-estate': 'LBRE',
+            'vice-provost-and-dean-of-research': 'VPDoR',
+            'school-of-humanities-and-sciences': 'H&S',
+            'school-of-engineering': 'SoE',
+            'department-of-athletics-physical-education-and-recreation': 'DAPER',
+            'graduate-school-of-education': 'GSE',
+            'slac-national-accelerator-laboratory': 'SLAC',
+            'vice-provost-for-student-affairs': 'VPSA'
+        }
+        affiliation = affiliation_mapping.get(affiliation, affiliation)
+    
     return {'uid': uid, 'title': title, 'affiliation': affiliation, 'display_name': display_name}

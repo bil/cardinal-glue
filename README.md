@@ -365,6 +365,32 @@ remove_from_service(
 
 ---
 
+## Gemini CLI Skills
+
+`cardinal-glue` includes pre-packaged skills that extend the [Gemini CLI](https://github.com/google/gemini-cli) to act as a powerful, AI-driven manager for these APIs.
+
+### Stanford Workgroup Manager Skill
+The `stanford-workgroup.skill` encapsulates every function of the Workgroup API into a unified tool for the Gemini CLI. You can ask Gemini CLI to "list workgroups under my stem", "copy this workgroup to a new stem", or "make this workgroup private", and it will handle the API calls seamlessly.
+
+**Installation:**
+```bash
+gemini skills install cardinal-glue/skills/stanford-workgroup.skill --scope workspace
+```
+*(After installing, run `/skills reload` in your interactive Gemini CLI session).*
+
+**Auto-Approval Configuration (Optional but Recommended):**
+By default, Gemini CLI will ask for your approval before executing the skill's background scripts. To allow the workgroup skill to run seamlessly without interrupting your chat, add the following policy rule to your `~/.gemini/policies/skill-rules.toml` file:
+
+```toml
+[[rule]]
+toolName = "run_shell_command"
+commandRegex = ".*stanford-workgroup/scripts/wg_tool\\.sh.*"
+decision = "allow"
+priority = 100
+```
+
+---
+
 ## Planned Functionality
 
 - File management through `s3fs` and `sshfs`
