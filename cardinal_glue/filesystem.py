@@ -191,14 +191,30 @@ def create_gcs_buckets(workshop_num, workshop_date, uid_list, project_id=None, s
             bucket_ref = storage_client.bucket(bucket_name)
             if not bucket_ref.exists():
                 bucket = storage_client.create_bucket(bucket_name, location='us-west1')
-                bucket.acl.user(user).grant_write()
-                bucket.acl.save()
+                
+                # 1. Grant ACL write permission (fails if user does not exist in Google directory)
+                try:
+                    bucket.acl.user(user).grant_write()
+                    bucket.acl.save()
+                    logger.info(f"ACL write permission granted to {user}")
+                except Exception as acl_err:
+                    logger.warning(f"Could not set ACL for {user}: {acl_err}")
+                
+                # 2. Configure bucket settings (Always enforced and patched)
                 bucket.iam_configuration.public_access_prevention = "enforced"
                 bucket.add_lifecycle_delete_rule(age=30)
                 bucket.patch()
-                policy = bucket.get_iam_policy(requested_policy_version=3)
-                policy.bindings.append({"role": role, "members": {member}})
-                bucket.set_iam_policy(policy)
+                logger.info(f"Bucket '{bucket_name}' security & lifecycle policies applied successfully.")
+                
+                # 3. Grant IAM role policy (fails if member does not exist in Google directory)
+                try:
+                    policy = bucket.get_iam_policy(requested_policy_version=3)
+                    policy.bindings.append({"role": role, "members": {member}})
+                    bucket.set_iam_policy(policy)
+                    logger.info(f"IAM role policy granted to {member}")
+                except Exception as iam_err:
+                    logger.warning(f"Could not set IAM policy for {member}: {iam_err}")
+                
                 logger.info(f"Bucket '{bucket_name}' created successfully for {uid}")
                 results[uid] = "created"
             else:
