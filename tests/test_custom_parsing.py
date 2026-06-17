@@ -172,5 +172,34 @@ class TestCustomParsing(unittest.TestCase):
         result = transform_cap_profile('testuid', profile_staff_blrs)
         self.assertEqual(result.get('title'), 'postdoc')
 
+    def test_staff_faculty_title_override(self):
+        # User is both staff and faculty, with faculty at index 0 and staff at index 1
+        profile = {
+            'affiliations': {'capStaff': True, 'capFaculty': True},
+            'titles': [
+                {
+                    'affiliation': 'capFaculty',
+                    'title': 'Professor',
+                    'organization': {'orgCode': 'ABCD'}
+                },
+                {
+                    'affiliation': 'capStaff',
+                    'title': 'Manager',
+                    'organization': {'orgCode': 'XYZ'}
+                }
+            ]
+        }
+        
+        class MockCapClient:
+            def get_org_from_code(self, org_code):
+                return f"Resolved-{org_code}"
+
+        mock_client = MockCapClient()
+        result = transform_cap_profile('testuid', profile, cap_client=mock_client)
+        
+        # Verify that it bypassed the faculty ABCD org and correctly used XYZ org (from capStaff)
+        self.assertEqual(result.get('title'), 'staff')
+        self.assertEqual(result.get('affiliation'), 'Resolved-XYZ')
+
 if __name__ == '__main__':
     unittest.main()

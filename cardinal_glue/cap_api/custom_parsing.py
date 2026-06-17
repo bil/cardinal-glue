@@ -70,6 +70,18 @@ def transform_cap_profile(uid, raw_profile, cap_client=None):
     # Specific case: staff + faculty with University Staff/any override = staff
     if isinstance(affiliations, list) and 'staff' in affiliations and 'faculty' in affiliations:
         title = 'staff'
+        # Override the primary extraction by finding the specific staff title entry
+        for t in titles:
+            aff = str(t.get('affiliation', '')).lower()
+            if aff in ('capstaff', 'staff'):
+                primary_title_str = str(t.get('title', 'NULL'))
+                org_code = t.get('organization', {}).get('orgCode')
+                if org_code and org_code != 'NULL':
+                    if cap_client:
+                        organization = cap_client.get_org_from_code(org_code)
+                    if not organization:
+                        organization = org_code
+                break
 
     # Transform registry based on title string or fellow affiliation
     elif title == 'registry':
