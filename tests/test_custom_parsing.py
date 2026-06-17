@@ -6,9 +6,10 @@ class TestCustomParsing(unittest.TestCase):
         # A minimal mock profile that triggers the organization assignment
         def make_mock_profile(org_code):
             return {
-                'organizations': [
+                'titles': [
                     {
-                        'type': 'affiliation',
+                        'affiliation': 'capStaff',
+                        'title': 'Staff',
                         'organization': {
                             'orgCode': org_code
                         }
@@ -51,9 +52,10 @@ class TestCustomParsing(unittest.TestCase):
         # which should then become 'VPDoR'
         def make_mock_profile(org_code):
             return {
-                'organizations': [
+                'titles': [
                     {
-                        'type': 'affiliation',
+                        'affiliation': 'capStaff',
+                        'title': 'Staff',
                         'organization': {
                             'orgCode': org_code
                         }

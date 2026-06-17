@@ -39,10 +39,11 @@ def transform_cap_profile(uid, raw_profile, cap_client=None):
     
     # --- Resolve organization and primary title ---
     organization = None
+    title = None
     titles = raw_profile.get('titles', [])
     primary_title_str = ""
 
-    # Try primary title extraction path (using titles[0])
+    # Primary title extraction path (using titles[0])
     if titles and isinstance(titles, list) and isinstance(titles[0], dict):
         primary_title_entry = titles[0]
         raw_title_aff = primary_title_entry.get('affiliation')
@@ -53,37 +54,16 @@ def transform_cap_profile(uid, raw_profile, cap_client=None):
             if title.startswith('cap'):
                 title = title[3:]
 
-            # Extract organization code if available from primary title
-            org_code = primary_title_entry.get('organization', {}).get('orgCode')
-            if org_code and org_code != 'NULL':
-                if cap_client:
-                    organization = cap_client.get_org_from_code(org_code)
-                if not organization:
-                    organization = org_code
-
-    # If primary title path did not resolve organization, fall back to organizations list
-    if not organization:
-        for org in raw_profile.get('organizations', []):
-            if org.get('type') == 'affiliation':
-                org_code = org.get('organization', {}).get('orgCode')
-                if org_code and org_code != 'NULL':
-                    if cap_client:
-                        organization = cap_client.get_org_from_code(org_code)
-                    if not organization:
-                        organization = org_code
-                    break
+        # Extract organization code from primary title
+        org_code = primary_title_entry.get('organization', {}).get('orgCode')
+        if org_code and org_code != 'NULL':
+            if cap_client:
+                organization = cap_client.get_org_from_code(org_code)
+            if not organization:
+                organization = org_code
 
     # --- Extract display name ---
     display_name = raw_profile.get('displayName')
-
-    # --- Determine title from affiliations if not already resolved ---
-    if not title:
-        if isinstance(affiliations, list) and affiliations:
-            title = affiliations[0]
-        elif isinstance(affiliations, str):
-            title = affiliations
-        else:
-            title = None
 
     # --- Apply business rules for title mapping ---
 
