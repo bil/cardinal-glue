@@ -37,18 +37,32 @@ def transform_cap_profile(uid, raw_profile, cap_client=None):
         contacts = raw_profile['contacts'][0]
         position = str(contacts.get('position', 'NULL'))
     
-    # --- Resolve organization ---
+    # --- Resolve organization and primary title ---
     organization = None
-    if 'advisees' in raw_profile:
-        # For advisors, get org from titles
-        for title_entry in raw_profile.get('titles', []):
-            if title_entry.get('appointmentType') == 'pr':
-                org_code = title_entry.get('organization', {}).get('orgCode')
-                if org_code and cap_client:
+    titles = raw_profile.get('titles', [])
+    primary_title_str = ""
+
+    # Try primary title extraction path (using titles[0])
+    if titles and isinstance(titles, list) and isinstance(titles[0], dict):
+        primary_title_entry = titles[0]
+        raw_title_aff = primary_title_entry.get('affiliation')
+        primary_title_str = str(primary_title_entry.get('title', 'NULL'))
+
+        if raw_title_aff:
+            title = str(raw_title_aff).lower()
+            if title.startswith('cap'):
+                title = title[3:]
+
+            # Extract organization code if available from primary title
+            org_code = primary_title_entry.get('organization', {}).get('orgCode')
+            if org_code and org_code != 'NULL':
+                if cap_client:
                     organization = cap_client.get_org_from_code(org_code)
-                break
-    else:
-        # For others, get org from organizations list
+                if not organization:
+                    organization = org_code
+
+    # If primary title path did not resolve organization, fall back to organizations list
+    if not organization:
         for org in raw_profile.get('organizations', []):
             if org.get('type') == 'affiliation':
                 org_code = org.get('organization', {}).get('orgCode')
@@ -58,59 +72,46 @@ def transform_cap_profile(uid, raw_profile, cap_client=None):
                     if not organization:
                         organization = org_code
                     break
-    
+
     # --- Extract display name ---
     display_name = raw_profile.get('displayName')
 
-    # --- Determine title from affiliations ---
-    if isinstance(affiliations, list) and affiliations:
-        title = affiliations[0]
-    elif isinstance(affiliations, str):
-        title = affiliations
-    else:
-        title = None
-    
+    # --- Determine title from affiliations if not already resolved ---
+    if not title:
+        if isinstance(affiliations, list) and affiliations:
+            title = affiliations[0]
+        elif isinstance(affiliations, str):
+            title = affiliations
+        else:
+            title = None
+
     # --- Apply business rules for title mapping ---
-    
-    # Specific case: registry + fellow = fellow (not staff)
-    if isinstance(affiliations, list):
-        if 'registry' in affiliations and 'fellow' in affiliations:
+
+    # Specific case: staff + faculty with University Staff/any override = staff
+    if isinstance(affiliations, list) and 'staff' in affiliations and 'faculty' in affiliations:
+        title = 'staff'
+
+    # Transform registry based on title string or fellow affiliation
+    elif title == 'registry':
+        if primary_title_str.lower() == 'undergraduate':
+            title = 'undergraduate'
+        elif isinstance(affiliations, list) and 'fellow' in affiliations:
             title = 'fellow'
-        # Specific case: student affiliations should override staff
-        elif 'staff' in affiliations and 'msstudent' in affiliations:
-            title = 'msstudent'
-        elif 'staff' in affiliations and 'phdstudent' in affiliations:
-            title = 'phdstudent'
-        elif 'staff' in affiliations and 'mdstudent' in affiliations:
-            title = 'mdstudent'
-        # Specific case: staff + faculty with University Staff affiliationType = staff
-        elif 'staff' in affiliations and 'faculty' in affiliations:
-            if isinstance(contacts, dict) and contacts.get('affiliationType') == 'University - Staff':
-                title = 'staff'
-        # Transform registry to undergraduate or staff based on position
-        elif title == 'registry':
-            if position.lower() == 'undergraduate':
-                title = 'undergraduate'
-            else:
-                title = 'staff'
-    elif isinstance(affiliations, str):
-        if title == 'registry':
-            if position.lower() == 'undergraduate':
-                title = 'undergraduate'
-            else:
-                title = 'staff'
-        
-    # Transform faculty with specific contact positions
-    if title == 'faculty' and isinstance(contacts, dict):
-        contact_position = contacts.get('position', '')
-        if contact_position == 'Instructor':
-            title = 'postdoc'
-        elif 'research scientist' in contact_position.lower():
+        else:
             title = 'staff'
-            
-    if position and re.compile(r"Basic Life Res.* Scientist", re.IGNORECASE).match(position): 
+
+    # Transform faculty with specific title strings
+    elif title == 'faculty':
+        if primary_title_str == 'Instructor':
+            title = 'postdoc'
+        elif 'research scientist' in primary_title_str.lower():
+            title = 'staff'
+
+    # Transform Basic Life Research Scientist (can be faculty or staff)
+    if primary_title_str and re.compile(r"Basic Life Res.* Scientist", re.IGNORECASE).match(primary_title_str): 
         title = 'postdoc'
-    if organization == 'NKGV': 
+
+    if organization == 'NKGV':  
         organization = 'vice-provost-and-dean-of-research'
     affiliation = (str.split(organization, '/')[0] if organization else None)
     

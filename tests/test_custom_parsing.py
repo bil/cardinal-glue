@@ -70,5 +70,105 @@ class TestCustomParsing(unittest.TestCase):
         result = transform_cap_profile('testuid', profile, cap_client=mock_client)
         self.assertEqual(result.get('affiliation'), 'VPDoR')
 
+    def test_titles_array_primary_resolution(self):
+        # Verify that if titles[0] exists, we resolve the primary title and organization from it
+        class MockCapClient:
+            def get_org_from_code(self, org_code):
+                return org_code
+
+        mock_client = MockCapClient()
+        profile = {
+            'titles': [
+                {
+                    'affiliation': 'capPhdStudent',
+                    'title': 'Ph.D. Student',
+                    'organization': {'orgCode': 'school-of-engineering'}
+                },
+                {
+                    'affiliation': 'capStaff',
+                    'title': 'Software Developer',
+                    'organization': {'orgCode': 'school-of-medicine'}
+                }
+            ],
+            'affiliations': {
+                'capPhdStudent': True,
+                'capStaff': True
+            }
+        }
+        
+        result = transform_cap_profile('testuid', profile, cap_client=mock_client)
+        self.assertEqual(result.get('title'), 'phdstudent')
+        self.assertEqual(result.get('affiliation'), 'SoE') # 'resolved-school-of-engineering' -> 'school-of-engineering' -> 'SoE'
+
+    def test_staff_plus_faculty_override(self):
+        # Verify that if both staff and faculty exist in affiliations, we override to staff
+        profile = {
+            'titles': [
+                {
+                    'affiliation': 'capFaculty',
+                    'title': 'Acting Assistant Professor',
+                    'organization': {'orgCode': 'school-of-medicine'}
+                }
+            ],
+            'affiliations': {
+                'capStaff': True,
+                'capFaculty': True
+            }
+        }
+        result = transform_cap_profile('testuid', profile)
+        self.assertEqual(result.get('title'), 'staff')
+
+    def test_registry_overrides(self):
+        # Undergrad override
+        profile_undergrad = {
+            'titles': [{'affiliation': 'capRegistry', 'title': 'Undergraduate'}]
+        }
+        result = transform_cap_profile('testuid', profile_undergrad)
+        self.assertEqual(result.get('title'), 'undergraduate')
+
+        # Fellow override
+        profile_fellow = {
+            'titles': [{'affiliation': 'capRegistry', 'title': 'Affiliate'}],
+            'affiliations': {'capRegistry': True, 'capFellow': True}
+        }
+        result = transform_cap_profile('testuid', profile_fellow)
+        self.assertEqual(result.get('title'), 'fellow')
+
+        # Default to staff
+        profile_default = {
+            'titles': [{'affiliation': 'capRegistry', 'title': 'Affiliate'}]
+        }
+        result = transform_cap_profile('testuid', profile_default)
+        self.assertEqual(result.get('title'), 'staff')
+
+    def test_instructor_and_research_scientist_overrides(self):
+        # Instructor -> postdoc
+        profile_instructor = {
+            'titles': [{'affiliation': 'capFaculty', 'title': 'Instructor'}]
+        }
+        result = transform_cap_profile('testuid', profile_instructor)
+        self.assertEqual(result.get('title'), 'postdoc')
+
+        # Research Scientist -> staff
+        profile_scientist = {
+            'titles': [{'affiliation': 'capFaculty', 'title': 'Research Scientist'}]
+        }
+        result = transform_cap_profile('testuid', profile_scientist)
+        self.assertEqual(result.get('title'), 'staff')
+
+    def test_blrs_override(self):
+        # Basic Life Research Scientist (regardless of faculty/staff base title) -> postdoc
+        profile_faculty_blrs = {
+            'titles': [{'affiliation': 'capFaculty', 'title': 'Basic Life Res. Scientist'}]
+        }
+        result = transform_cap_profile('testuid', profile_faculty_blrs)
+        self.assertEqual(result.get('title'), 'postdoc')
+
+        profile_staff_blrs = {
+            'titles': [{'affiliation': 'capStaff', 'title': 'Basic Life Research Scientist'}]
+        }
+        result = transform_cap_profile('testuid', profile_staff_blrs)
+        self.assertEqual(result.get('title'), 'postdoc')
+
 if __name__ == '__main__':
     unittest.main()
