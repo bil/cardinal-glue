@@ -42,7 +42,7 @@ class TestCustomParsing(unittest.TestCase):
             profile = make_mock_profile(input_org)
             result = transform_cap_profile('testuid', profile, cap_client=mock_client)
             self.assertEqual(
-                result.get('affiliation'), 
+                result.get('affiliation_mapped'), 
                 expected_affiliation, 
                 f"Failed for input: {input_org}"
             )
@@ -70,7 +70,7 @@ class TestCustomParsing(unittest.TestCase):
         mock_client = MockCapClient()
         profile = make_mock_profile('NKGV')
         result = transform_cap_profile('testuid', profile, cap_client=mock_client)
-        self.assertEqual(result.get('affiliation'), 'VPDoR')
+        self.assertEqual(result.get('affiliation_mapped'), 'VPDoR')
 
     def test_titles_array_primary_resolution(self):
         # Verify that if titles[0] exists, we resolve the primary title and organization from it
@@ -100,7 +100,7 @@ class TestCustomParsing(unittest.TestCase):
         
         result = transform_cap_profile('testuid', profile, cap_client=mock_client)
         self.assertEqual(result.get('title'), 'phdstudent')
-        self.assertEqual(result.get('affiliation'), 'SoE') # 'resolved-school-of-engineering' -> 'school-of-engineering' -> 'SoE'
+        self.assertEqual(result.get('affiliation_mapped'), 'SoE') # 'resolved-school-of-engineering' -> 'school-of-engineering' -> 'SoE'
 
     def test_staff_plus_faculty_override(self):
         # Verify that if both staff and faculty exist in affiliations, we override to staff

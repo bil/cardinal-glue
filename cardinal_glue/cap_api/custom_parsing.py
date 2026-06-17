@@ -107,7 +107,8 @@ def transform_cap_profile(uid, raw_profile, cap_client=None):
         organization = 'vice-provost-and-dean-of-research'
     affiliation = (organization.split('/')[0] if isinstance(organization, str) else None)
     
-    # Apply hardcoded affiliation transformations
+    # Generate the mapped affiliation for the new affiliation_mapped field
+    affiliation_mapped = None
     if affiliation:
         affiliation_mapping = {
             'school-of-medicine': 'SoM',
@@ -121,6 +122,6 @@ def transform_cap_profile(uid, raw_profile, cap_client=None):
             'slac-national-accelerator-laboratory': 'SLAC',
             'vice-provost-for-student-affairs': 'VPSA'
         }
-        affiliation = affiliation_mapping.get(affiliation, affiliation)
+        affiliation_mapped = affiliation_mapping.get(affiliation, affiliation)
     
-    return {'uid': uid, 'title': title, 'affiliation': affiliation, 'display_name': display_name}
+    return {'uid': uid, 'title': title, 'affiliation': affiliation, 'affiliation_mapped': affiliation_mapped, 'display_name': display_name}
