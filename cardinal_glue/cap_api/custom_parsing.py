@@ -111,9 +111,9 @@ def transform_cap_profile(uid, raw_profile, cap_client=None):
     if primary_title_str and re.compile(r"Basic Life Res.* Scientist", re.IGNORECASE).match(primary_title_str): 
         title = 'postdoc'
 
-    if organization == 'NKGV':  
+    if organization == 'NKGV': 
         organization = 'vice-provost-and-dean-of-research'
-    affiliation = (str.split(organization, '/')[0] if organization else None)
+    affiliation = (organization.split('/')[0] if isinstance(organization, str) else None)
     
     # Apply hardcoded affiliation transformations
     if affiliation:
