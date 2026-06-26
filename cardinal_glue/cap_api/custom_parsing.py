@@ -8,6 +8,7 @@ def transform_cap_profile(uid, raw_profile, cap_client=None):
     1. Extracts affiliations from the raw API response
     2. Resolves organization codes to human-readable names
     3. Applies domain-specific business rules for title/affiliation mapping
+    4. Extracts principal investigator / advisor (pi) if present
     
     Args:
         uid (str): The user's SUNet ID
@@ -15,12 +16,12 @@ def transform_cap_profile(uid, raw_profile, cap_client=None):
         cap_client (CAPClient, optional): An instance of CAPClient for resolving organization codes.
     
     Returns:
-        dict with keys: 'uid', 'title', 'affiliation', 'display_name'
+        dict with keys: 'uid', 'title', 'affiliation', 'affiliation_mapped', 'display_name', 'pi'
     """
-    title, affiliation, display_name = None, None, None
+    title, affiliation, display_name, pi = None, None, None, None
     
     if not raw_profile:
-        return {'uid': uid, 'title': title, 'affiliation': affiliation, 'display_name': display_name}
+        return {'uid': uid, 'title': title, 'affiliation': affiliation, 'display_name': display_name, 'pi': None}
     
     # --- Extract affiliations from raw profile ---
     # Collect all true affiliations as a list, stripping 'cap' prefix
@@ -124,4 +125,11 @@ def transform_cap_profile(uid, raw_profile, cap_client=None):
         }
         affiliation_mapped = affiliation_mapping.get(affiliation, affiliation)
     
-    return {'uid': uid, 'title': title, 'affiliation': affiliation, 'affiliation_mapped': affiliation_mapped, 'display_name': display_name}
+    # --- Extract advisor/PI if present ---
+    stanford_advisors = raw_profile.get('stanfordAdvisors')
+    if isinstance(stanford_advisors, list) and len(stanford_advisors) > 0:
+        first_advisor = stanford_advisors[0]
+        if isinstance(first_advisor, dict):
+            pi = first_advisor.get('fullName')
+
+    return {'uid': uid, 'title': title, 'affiliation': affiliation, 'affiliation_mapped': affiliation_mapped, 'display_name': display_name, 'pi': pi}
