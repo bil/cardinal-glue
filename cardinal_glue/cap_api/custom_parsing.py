@@ -70,19 +70,27 @@ def transform_cap_profile(uid, raw_profile, cap_client=None):
 
     # Specific case: staff + faculty with University Staff/any override = staff
     if isinstance(affiliations, list) and 'staff' in affiliations and 'faculty' in affiliations:
-        title = 'staff'
+        has_real_staff_title = False
         # Override the primary extraction by finding the specific staff title entry
         for t in titles:
             aff = str(t.get('affiliation', '')).lower()
             if aff in ('capstaff', 'staff'):
-                primary_title_str = str(t.get('title', 'NULL'))
-                org_code = t.get('organization', {}).get('orgCode')
-                if org_code and org_code != 'NULL':
-                    if cap_client:
-                        organization = cap_client.get_org_from_code(org_code)
-                    if not organization:
-                        organization = org_code
-                break
+                # Exclude simple institute memberships (jobCode 1234, or title of "Member")
+                job_code = t.get('jobCode')
+                t_title = t.get('title', '')
+                if job_code != '1234' and (not isinstance(t_title, str) or t_title.lower() != 'member'):
+                    has_real_staff_title = True
+                    primary_title_str = str(t_title if t_title is not None else 'NULL')
+                    org_dict = t.get('organization')
+                    org_code = org_dict.get('orgCode') if isinstance(org_dict, dict) else None
+                    if org_code and org_code != 'NULL':
+                        if cap_client:
+                            organization = cap_client.get_org_from_code(org_code)
+                        if not organization:
+                            organization = org_code
+                    break
+        if has_real_staff_title:
+            title = 'staff'
 
     # Transform registry based on title string or fellow affiliation
     elif title == 'registry':
@@ -101,7 +109,7 @@ def transform_cap_profile(uid, raw_profile, cap_client=None):
             title = 'staff'
 
     # Transform Basic Life Research Scientist (can be faculty or staff)
-    if primary_title_str and re.compile(r"Basic Life Res.* Scientist", re.IGNORECASE).match(primary_title_str): 
+    if title != 'staff' and primary_title_str and re.compile(r"Basic Life Res.* Scientist", re.IGNORECASE).match(primary_title_str): 
         title = 'postdoc'
 
     if organization == 'NKGV': 
