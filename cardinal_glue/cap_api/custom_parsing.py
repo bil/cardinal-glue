@@ -69,6 +69,7 @@ def transform_cap_profile(uid, raw_profile, cap_client=None):
     # --- Apply business rules for title mapping ---
 
     # Specific case: staff + faculty with University Staff/any override = staff
+    dual_role_staff_override = False
     if isinstance(affiliations, list) and 'staff' in affiliations and 'faculty' in affiliations:
         has_real_staff_title = False
         # Override the primary extraction by finding the specific staff title entry
@@ -91,6 +92,7 @@ def transform_cap_profile(uid, raw_profile, cap_client=None):
                     break
         if has_real_staff_title:
             title = 'staff'
+            dual_role_staff_override = True
 
     # Transform registry based on title string or fellow affiliation
     elif title == 'registry':
@@ -109,7 +111,7 @@ def transform_cap_profile(uid, raw_profile, cap_client=None):
             title = 'staff'
 
     # Transform Basic Life Research Scientist (can be faculty or staff)
-    if title != 'staff' and primary_title_str and re.compile(r"Basic Life Res.* Scientist", re.IGNORECASE).match(primary_title_str): 
+    if not dual_role_staff_override and primary_title_str and re.compile(r"Basic Life Res.* Scientist", re.IGNORECASE).match(primary_title_str): 
         title = 'postdoc'
 
     if organization == 'NKGV': 
