@@ -21,3 +21,9 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 include = ["cardinal_glue*"]
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = [".", "tests"]

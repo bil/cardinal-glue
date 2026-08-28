@@ -397,6 +397,32 @@ priority = 100
 
 ---
 
+## Testing
+
+The suite is hermetic: it never performs real HTTP and never reads the credentials in
+`~/.config/cardinal-glue`. Both are enforced by autouse fixtures in `tests/conftest.py`, so a
+test that tries either fails rather than silently succeeding.
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e . --no-deps          # skips the heavy optional deps
+.venv/bin/pip install pytest requests google-cloud-firestore firebase-admin
+.venv/bin/pytest
+```
+
+`--no-deps` avoids pulling in pandas/gcsfs/gdrivefs, which the tested modules do not need. The
+two google packages are only required so `cardinal_glue.firestore` can be imported.
+
+Covered: `workgroup_api` (both modules), `cap_api` (client, auth, custom parsing), `canvas_api`,
+`qualtrics_api.qualtricsauth`, `auth.core`, and `firestore`. Not covered: `filesystem`,
+`qualtrics_api.surveys`/`xm`, and `core` -- these need pandas/fsspec and have no current callers.
+
+HTTP is faked at the `auth.make_request` seam via the `FakeAuth` double, which records every
+`(method, url, params)`. Asserting on recorded requests is what makes ordering bugs visible.
+
+Tests marked `xfail` are known open defects, each with the reason in its marker; run
+`pytest -rx` to list them.
+
 ## Contact
 
 [Bryce Grier](mailto:bdgrier@stanford.edu)
