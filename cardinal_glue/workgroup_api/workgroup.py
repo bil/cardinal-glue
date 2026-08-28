@@ -18,6 +18,18 @@ class WorkgroupNotFound(WorkgroupError):
     """Raised when a workgroup is not found (404)."""
     pass
 
+class WorkgroupInactive(WorkgroupNotFound):
+    """
+    Raised when a workgroup has been deleted (the API soft-deletes).
+
+    A GET on a deleted workgroup answers 400 with {"notification": "Workgroup is inactive."}
+    rather than 404, so without this it surfaces as a generic WorkgroupAPIError. Subclasses
+    WorkgroupNotFound deliberately: callers that only care whether the workgroup is usable keep
+    working with `except WorkgroupNotFound`, while callers that need to distinguish "never
+    existed" from "deleted" can catch this specifically.
+    """
+    pass
+
 class WorkgroupPermissionDenied(WorkgroupError):
     """Raised when permission is denied (401)."""
     pass
@@ -34,6 +46,78 @@ class LinkageRemovalFailed(WorkgroupError):
     """Raised when a linkage cannot be removed from a workgroup."""
     pass
 
+
+# The API is asymmetric: a GET reports person members as type 'PERSON', but PUT/DELETE only
+# accept 'USER' for the same thing. Feeding a type straight back from a read is the obvious
+# thing to do, so accept the read vocabulary everywhere and normalise it here.
+MEMBER_TYPE_ALIASES = {'PERSON': 'USER'}
+VALID_MEMBER_TYPES = ('USER', 'WORKGROUP', 'CERTIFICATE')
+
+# Substring of the 400 notification returned for a soft-deleted workgroup.
+_INACTIVE_NOTIFICATION = 'workgroup is inactive'
+
+
+def normalize_member_type(member_type, label='member_type'):
+    """
+    Upper-case a member/admin type and map read-only aliases (PERSON -> USER) onto the value the
+    API accepts for writes. Raises ValueError for anything unusable.
+    """
+    normalized = str(member_type).upper()
+    normalized = MEMBER_TYPE_ALIASES.get(normalized, normalized)
+    if normalized not in VALID_MEMBER_TYPES:
+        raise ValueError(
+            f"{label} must be one of {', '.join(VALID_MEMBER_TYPES)} "
+            f"(or an alias: {', '.join(MEMBER_TYPE_ALIASES)})"
+        )
+    return normalized
+
+
+def qualify_member_name(name, member_type, default_stem):
+    """
+    Stem-qualify a WORKGROUP member name, leaving every other type untouched.
+
+    Must run BEFORE any membership comparison: the members list holds nested workgroups
+    stem-qualified, so comparing a bare name against it never matches.
+    """
+    if member_type == 'WORKGROUP' and ':' not in name:
+        return f'{default_stem}:{name}'
+    return name
+
+
+def _is_inactive_response(response):
+    """True if this 400 is the API's 'workgroup is inactive' (soft-deleted) answer."""
+    if response.status_code != 400:
+        return False
+    try:
+        body = response.json()
+    except Exception:
+        return False
+    haystack = ' '.join(
+        str(body.get(k, '')) for k in ('notification', 'message', 'error')
+    ).lower()
+    return _INACTIVE_NOTIFICATION in haystack
+
+
+def raise_for_workgroup_status(response, description):
+    """
+    Translate a non-200 read response into the right exception.
+
+    Read paths only. Write paths have their own per-status handling (409 already-exists, 404
+    ignore_missing, ...) that this would flatten.
+    """
+    if response.status_code == 200:
+        return
+    if _is_inactive_response(response):
+        logger.error(f"{description} has been deleted (inactive).")
+        raise WorkgroupInactive(f"{description} has been deleted (inactive).")
+    if response.status_code == 404:
+        logger.error(f"{description} not found.")
+        raise WorkgroupNotFound(f"{description} not found.")
+    if response.status_code in (401, 403):
+        logger.error('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
+        raise WorkgroupPermissionDenied(f"Permission denied accessing {description}.")
+    logger.error(f'Error {response.status_code}')
+    raise WorkgroupAPIError(f"Workgroup API error for {description}: {response.status_code}")
 
 
 class WorkgroupManager():
@@ -80,28 +164,36 @@ class WorkgroupManager():
 
     def populate_workgroup_list(self):
         """
-        List the workgroups nested under a given stem.
-
-        Parameters
-        __________
-        stem : string
-            The workgroup stem to query.
+        List the workgroups nested under this manager's stem, into self.workgroup_list.
 
         Returns
         _______
         workgroup_list : list
-            A list of workgroup names.
+            A list of bare workgroup names (no stem prefix).
+
+        Raises
+        ______
+        WorkgroupPermissionDenied, WorkgroupAPIError
+            On any non-200 response. This used to return an empty list instead, which is
+            indistinguishable from a genuinely empty stem.
         """
-        url = f'{self._base_url}/search/{self.stem}*'
+        # Search on '{stem}:*' rather than '{stem}*': the API rejects wildcards on search
+        # strings shorter than 4 characters, so a 3-character stem (e.g. 'dbp') always 400s
+        # without the colon and the whole stem silently looks empty.
+        url = f'{self._base_url}/search/{self.stem}:*'
         response = self._auth.make_request('get', url)
+        raise_for_workgroup_status(response, f"workgroup search for stem '{self.stem}'")
+
         workgroup_list = []
         for item in response.json().get('results', []):
             temp = item.get('name')
             if not temp:
                 logger.warning("Workgroup search item found but 'name' is missing.")
                 continue
-            temp = str.split(temp, ':')[1]
-            workgroup_list.append(temp)
+            # rpartition, not split(':')[1]: stems themselves contain colons (e.g. 'som:it'),
+            # so the workgroup name is everything after the LAST colon.
+            _, _, bare_name = temp.rpartition(':')
+            workgroup_list.append(bare_name)
         self.workgroup_list = workgroup_list
 
     def create_workgroup(self, name, description, filter_in='NONE', reusable='FALSE', visibility='PRIVATE', privgroup='TRUE', add_google_link=False):
@@ -339,9 +431,12 @@ class WorkgroupManager():
                     admins_by_type.setdefault(a_type, []).append(a_id)
                     
             for a_type, a_list in admins_by_type.items():
-                api_type = 'USER' if a_type == 'PERSON' else a_type
-                if api_type in ['USER', 'WORKGROUP', 'CERTIFICATE']:
-                    new_wg.add_admins(a_list, admin_type=api_type, filter_admins=True, ignore_missing=True)
+                try:
+                    api_type = normalize_member_type(a_type, label='admin_type')
+                except ValueError:
+                    logger.warning(f"Skipping admins of unsupported type '{a_type}'.")
+                    continue
+                new_wg.add_admins(a_list, admin_type=api_type, filter_admins=True, ignore_missing=True)
 
             # 6. Copy members
             # Group members by type
@@ -353,10 +448,13 @@ class WorkgroupManager():
                     members_by_type.setdefault(m_type, []).append(m_id)
             
             for m_type, m_list in members_by_type.items():
-                # Workgroup API uses 'PERSON' in GET but 'USER' in PUT/POST for type
-                api_type = 'USER' if m_type == 'PERSON' else m_type
-                if api_type in ['USER', 'WORKGROUP', 'CERTIFICATE']:
-                    new_wg.add_members(m_list, member_type=api_type, filter_members=True, ignore_missing=True)
+                # normalize_member_type handles the GET-'PERSON' / PUT-'USER' asymmetry.
+                try:
+                    api_type = normalize_member_type(m_type)
+                except ValueError:
+                    logger.warning(f"Skipping members of unsupported type '{m_type}'.")
+                    continue
+                new_wg.add_members(m_list, member_type=api_type, filter_members=True, ignore_missing=True)
                     
             # 7. Add Google Link if needed
             if has_google:
@@ -462,6 +560,40 @@ class Workgroup():
     def admins(self, value):
         self._admins = value
 
+    def _members_of_type(self, wanted):
+        """Ids of members whose type matches `wanted`, after alias normalisation."""
+        if not self._populated: self.populate_workgroup()
+        ids = []
+        for entry in (self._member_details or []):
+            member_id = entry.get('id')
+            raw_type = entry.get('type')
+            if not member_id or not raw_type:
+                continue
+            if MEMBER_TYPE_ALIASES.get(str(raw_type).upper(), str(raw_type).upper()) == wanted:
+                ids.append(member_id)
+        return ids
+
+    @property
+    def person_members(self):
+        """
+        Bare SUNet IDs of the people in this workgroup.
+
+        Prefer this over `.members`, which mixes bare uids (people, certificates) with
+        stem-qualified names (nested workgroups) and drops the type, leaving a person and a
+        certificate indistinguishable.
+        """
+        return self._members_of_type('USER')
+
+    @property
+    def workgroup_members(self):
+        """Stem-qualified names of the workgroups nested in this workgroup."""
+        return self._members_of_type('WORKGROUP')
+
+    @property
+    def certificate_members(self):
+        """Names of the certificate principals in this workgroup."""
+        return self._members_of_type('CERTIFICATE')
+
     @property
     def member_details(self):
         if not self._populated: self.populate_workgroup()
@@ -504,6 +636,7 @@ class Workgroup():
         """
         url = f'{self._base_url}/{self.stem}:{self.name}'
         response = self._auth.make_request('get', url)
+        raise_for_workgroup_status(response, f"Workgroup '{self.stem}:{self.name}'")
         if response.status_code == 200:
             self._member_details = response.json().get('members', [])
             self._admins = response.json().get('administrators', [])
@@ -516,15 +649,6 @@ class Workgroup():
             self._integrations = response.json().get('integrations')
             self._populated = True
             logger.info(f'Workgroup {self.name} populated.')
-        elif response.status_code == 404:
-            logger.error(f"Workgroup '{self.name}' not found.")
-            raise WorkgroupNotFound(f"Workgroup '{self.name}' not found.")
-        elif response.status_code == 401:
-            logger.error('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
-            raise WorkgroupPermissionDenied("Permission denied accessing workgroup.")
-        else:
-            logger.error(f'Error {response.status_code}')
-            raise WorkgroupAPIError(f"Workgroup API error: {response.status_code}")
  
     def populate_privgroup(self):
         """
@@ -532,20 +656,12 @@ class Workgroup():
         """
         url = f'{self._base_url}/{self.stem}:{self.name}/privgroup'
         response = self._auth.make_request('get', url)
+        raise_for_workgroup_status(response, f"Privgroup for workgroup '{self.stem}:{self.name}'")
         if response.status_code == 200:
             self._privgroup_members = response.json().get('members', [])
             self._privgroup_admins = response.json().get('administrators', [])
             self._privgroup_populated = True
             logger.info(f'Privgroup information for Workgroup {self.name} populated.')
-        elif response.status_code == 404:
-            logger.error(f"Workgroup '{self.name}' not found.")
-            raise WorkgroupNotFound(f"Workgroup '{self.name}' not found.")
-        elif response.status_code == 401:
-            logger.error('Permission denied. Make sure that you have added the appropriate certificate as a workgroup administrator.')
-            raise WorkgroupPermissionDenied("Permission denied accessing workgroup.")
-        else:
-            logger.error(f'Error {response.status_code}')
-            raise WorkgroupAPIError(f"Workgroup API error: {response.status_code}")
 
     def update_properties(self, description=None, reusable=None, visibility=None, privgroup=None, filter_in=None):
         """
@@ -611,14 +727,18 @@ class Workgroup():
         ignore_missing : bool
             Whether to ignore 404 Not Found errors for individual members (useful for migrations). Defaults to False.
         """
-        member_type = member_type.upper()
-        if member_type not in ['USER', 'WORKGROUP', 'CERTIFICATE']:
-            raise ValueError("member_type must be either 'USER', 'WORKGROUP', or 'CERTIFICATE'")
+        member_type = normalize_member_type(member_type)
 
         url = f'{self._base_url}/{self.stem}:{self.name}/members/'
         if (type(member_list) is not list):
             member_list = [member_list]
-        
+
+        # Qualify BEFORE filtering. self.members holds nested workgroups stem-qualified, so
+        # filtering a bare workgroup name against it never matches -- which used to mean a
+        # redundant add (harmless 409) here and a silent no-op in remove_members.
+        stem_to_use = member_stem if member_stem else self.stem
+        member_list = [qualify_member_name(m, member_type, stem_to_use) for m in member_list]
+
         # Filter existing members locally to reduce API calls IF requested
         if filter_members:
             member_list = list(set(member_list)-set(self.members))
@@ -629,10 +749,6 @@ class Workgroup():
             return
 
         for member in member_list:
-            if member_type == 'WORKGROUP' and ':' not in member:
-                stem_to_use = member_stem if member_stem else self.stem
-                member = f"{stem_to_use}:{member}"
-
             response = self._auth.make_request('put', f'{url}{member}', params={'type': member_type})
             if response.status_code == 200:
                 logger.info(f'{member} was added successfully to Workgroup {self.name}')
@@ -671,14 +787,16 @@ class Workgroup():
         ignore_missing : bool
             Whether to ignore 404 Not Found errors for individual admins (useful for migrations). Defaults to False.
         """
-        admin_type = admin_type.upper()
-        if admin_type not in ['USER', 'WORKGROUP', 'CERTIFICATE']:
-            raise ValueError("admin_type must be either 'USER', 'WORKGROUP', or 'CERTIFICATE'")
+        admin_type = normalize_member_type(admin_type, label='admin_type')
 
         url = f'{self._base_url}/{self.stem}:{self.name}/administrators/'
         if (type(admin_list) is not list):
             admin_list = [admin_list]
-        
+
+        # Qualify BEFORE filtering -- see add_members.
+        stem_to_use = admin_stem if admin_stem else self.stem
+        admin_list = [qualify_member_name(a, admin_type, stem_to_use) for a in admin_list]
+
         # Filter existing admins locally to reduce API calls IF requested
         if filter_admins:
             admin_ids = [i.get('id') for i in self.admins if i.get('id')]
@@ -690,10 +808,6 @@ class Workgroup():
             return
 
         for admin in admin_list:
-            if admin_type == 'WORKGROUP' and ':' not in admin:
-                stem_to_use = admin_stem if admin_stem else self.stem
-                admin = f"{stem_to_use}:{admin}"
-
             response = self._auth.make_request('put', f'{url}{admin}', params={'type': admin_type})
             if response.status_code == 200:
                 logger.info(f'{admin} was added successfully as admin to Workgroup {self.name}')
@@ -728,13 +842,17 @@ class Workgroup():
             Only used if member_type is 'WORKGROUP' and the member name does not contain a colon.
             Defaults to self.stem if not provided.
         """
-        member_type = member_type.upper()
-        if member_type not in ['USER', 'WORKGROUP', 'CERTIFICATE']:
-            raise ValueError("member_type must be either 'USER', 'WORKGROUP', or 'CERTIFICATE'")
+        member_type = normalize_member_type(member_type)
 
         url = f'{self._base_url}/{self.stem}:{self.name}/members/'
         if (type(member_list) is not list):
             member_list = [member_list]
+
+        # Qualify BEFORE filtering -- see add_members. Getting this order wrong made
+        # remove_members(['bare_group'], member_type='WORKGROUP', filter_members=True) filter the
+        # name out entirely and report success while removing nothing.
+        stem_to_use = member_stem if member_stem else self.stem
+        member_list = [qualify_member_name(m, member_type, stem_to_use) for m in member_list]
 
         # Filter members to remove locally to reduce API calls IF requested
         if filter_members:
@@ -747,10 +865,6 @@ class Workgroup():
 
         status_codes = []
         for member in member_list:
-            if member_type == 'WORKGROUP' and ':' not in member:
-                stem_to_use = member_stem if member_stem else self.stem
-                member = f"{stem_to_use}:{member}"
-
             response = self._auth.make_request('delete', f'{url}{member}', params={'type': member_type})
             if response.status_code == 200:
                 logger.info(f'{member} was removed successfully from Workgroup {self.name}')

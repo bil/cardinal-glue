@@ -1,5 +1,12 @@
-import sys
-from cardinal_glue.workgroup_api.workgroup import Workgroup, get_workgroup_list
+"""
+High-level wrappers for moving UID lists between services (Stanford Workgroups <-> Qualtrics).
+
+Status: this module is not exercised by any known caller and has no test coverage. It was
+unimportable until 2026-08-28 (it imported a `get_workgroup_list` that no longer exists), so
+anything beyond the Workgroup paths below should be treated as unverified -- importability is
+not the same as coverage.
+"""
+from cardinal_glue.workgroup_api.workgroup import Workgroup
 from cardinal_glue.qualtrics_api import xm
 
 
@@ -70,9 +77,9 @@ def sync_service(src, sync_object=None, sync_service=None, sync_list_name=None, 
             _remove_from_qualtrics(uid_remove_list=uid_remove_list, target_mailinglist=sync_object)
         _copy_to_qualtrics(uid_add_list=src_uid_list, dest_mailinglist=sync_object)
     elif isinstance(sync_object, Workgroup):
-        dest_uid_list = sync_object.members
+        dest_uid_list = sync_object.person_members
         uid_remove_list = list(set(dest_uid_list) - set(src_uid_list))
-        _remove_from_workgroup(uid_remove_list=uid_remove_list, target_workgroup=target_workgroup)
+        _remove_from_workgroup(uid_remove_list=uid_remove_list, target_workgroup=sync_object)
         _copy_to_workgroup(src_uid_list=src_uid_list, dest_workgroup=sync_object)
     else:
         raise ValueError('Please provide a valid destination object.')
@@ -276,7 +283,9 @@ def _prepare_src(src):
     if isinstance(src, xm.MailingList):
         uid_list = list(src.contacts['extRef'])
     elif isinstance(src, Workgroup):
-        uid_list = src.members
+        # person_members, not members: the latter mixes stem-qualified nested-workgroup names in
+        # with bare uids, which are not UIDs and cannot be transferred to another service.
+        uid_list = src.person_members
     if not isinstance(uid_list, list):
         raise ValueError('Please provide a valid source object or list.')
     return uid_list
@@ -293,9 +302,10 @@ def _validate_service(service, list_name):
     if type(service) is list:
         raise ValueError('Please pass a single service name as a string.')
     valid_services = ['qualtrics','workgroup']
-    for valid in valid_services:
-        if valid.lower() not in valid_services:
-            raise ValueError('Please provide a valid service name.')
+    if str(service).lower() not in valid_services:
+        raise ValueError(
+            f"Please provide a valid service name ({' or '.join(valid_services)}), got {service!r}."
+        )
 
 def _validate_qualtrics(xm_directory=None, list_name=None, xm_mailinglist=None):
     """
@@ -358,8 +368,7 @@ def _validate_workgroup(workgroup_stem=None, list_name=None, workgroup=None):
     if workgroup and not isinstance(workgroup, Workgroup):
         raise TypeError("Please specify 'workgroup' as a valid Workgroup object.")  
     if not workgroup:
-        list_name = workgroup.name
-        # Optimization: Instantiate directly instead of searching
+        # Instantiate directly from the caller-supplied name instead of searching.
         workgroup = Workgroup(workgroup_stem, list_name)
     return workgroup
 
