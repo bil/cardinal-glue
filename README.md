@@ -423,6 +423,9 @@ HTTP is faked at the `auth.make_request` seam via the `FakeAuth` double, which r
 Tests marked `xfail` are known open defects, each with the reason in its marker; run
 `pytest -rx` to list them.
 
+The suite ships in the source distribution (`MANIFEST.in`), so anyone building from an sdist can
+run it and verify the package for themselves. The wheel excludes it, since it isn't runtime code.
+
 ## Contact
 
 [Bryce Grier](mailto:bdgrier@stanford.edu)

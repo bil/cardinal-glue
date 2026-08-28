@@ -1,0 +1,14 @@
+# Ship the test suite in the sdist so anyone building from source can verify the package.
+#
+# Without this, setuptools' default sdist rules sweep up tests/test_*.py by pattern but miss
+# tests/conftest.py, producing 11 test files whose fixtures are absent -- a suite that fails at
+# collection. `graft` takes the whole directory, so what ships is runnable.
+#
+# This affects the sdist only. The wheel excludes tests either way, because
+# [tool.setuptools.packages.find] limits discovery to cardinal_glue* and tests/ is not a package.
+graft tests
+
+# Never ship build artifacts or caches.
+global-exclude __pycache__ *.py[cod] .DS_Store
+prune .venv
+prune .pytest_cache
